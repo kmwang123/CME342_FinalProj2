@@ -7,30 +7,38 @@
 #include "Array.hpp"
 #include "ionTransportEqns.hpp"
 #include "NSEqns.hpp"
+#include "mpiWrapper.hpp"
 using namespace std;
 
 Mesh meshSetup(double Lx,double dz,int N,double beta,double dx_max,double dx_min, double Ly, double dn, int M, double dy_min);
-IonTransportEqns2D ionSetup(double D1, double D2, double epsilon, Mesh mesh);
-NSEqns2D nsSetup(double kappa, Mesh mesh);
+IonTransportEqns2D ionSetup(double D1, double D2, double epsilon, Mesh mesh, bool restart, bool perturb, MPI_Wrapper mpi);
+NSEqns2D nsSetup(double kappa, Mesh mesh, bool restart);
 
 int main(int argc,char** argv)  {
 
   /*Setup MPI*/
   const int ndim = 2;
-  const int p1 = 1;
-  const int p2 = 1;
+  //const int p1 = 1;
+  //const int p2 = 1;
   /*Initialize MPI*/
-  int myid, num_procs;
+  //int myid, num_procs;
   MPI_Init(&argc, &argv);
-  MPI_Comm_rank(MPI_COMM_WORLD, &myid);
-  MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
+  MPI_Wrapper mpi;
+  mpi.p1 = 1;//p1;
+  mpi.p2 = 1;//p2;
+  //cout << "mpi.p1: " << mpi.p1 << endl;
+  //MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+  //MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
   
+  /*Boolean options*/
+  bool restart = 0;  
+  bool perturb = 1;
 
   /*Define Constants*/
   //XMesh
   const double Lx = 1;
   const double dz = 1;
-  const int N = 80;
+  const int N = 8;//0;
   const double beta = 0.03;
   const double dx_max = 1e-2;
   const double dx_min = 1e-4;
@@ -38,7 +46,7 @@ int main(int argc,char** argv)  {
   //YMesh
   const double Ly = 1;
   const double dn = 1;
-  const int M = 50;
+  const int M = 5;//0;
   const double dy_min = 1e-2;
  
   //Ion Transport Physical Constants
@@ -75,13 +83,11 @@ int main(int argc,char** argv)  {
   //mesh.printXmesh("x_vect_sX");
   //mesh.printYmesh("y_vect_sY"); 
   /*Setup system*/
-  IonTransportEqns2D ionSys = ionSetup(D1,D2,epsilon,mesh);
-  NSEqns2D nsSys = nsSetup(kappa,mesh);
-  /*int status = sys.readInputFile(inputfile);
-  if (status) {
-    cerr << "ERROR: System setup was unsuccessful!" << endl;
-    return 1;
-  }*/
+  /*Perturb C1 and C2 ions*/
+  IonTransportEqns2D ionSys = ionSetup(D1,D2,epsilon,mesh,restart,perturb,mpi);
+  NSEqns2D nsSys = nsSetup(kappa,mesh,restart);
+  ionSys.printOneConcentration("C1");
+
 
   MPI_Finalize();
   return 0;
@@ -118,18 +124,18 @@ Mesh meshSetup(double Lx,double dz,int N,double beta,double dx_max,double dx_min
   return mesh;
 }
 
-IonTransportEqns2D ionSetup(double D1, double D2, double epsilon, Mesh mesh) {
-  IonTransportEqns2D ionSys(mesh);
+IonTransportEqns2D ionSetup(double D1, double D2, double epsilon, Mesh mesh, bool restart, bool perturb, MPI_Wrapper mpi) {
+  IonTransportEqns2D ionSys(mesh,mpi);
   ionSys.D1 = D1;
   ionSys.D2 = D2;
   ionSys.epsilon = epsilon;
-  ionSys.setUp();
+  ionSys.setUp(restart,perturb);
   return ionSys;
 }
 
-NSEqns2D nsSetup(double kappa, Mesh mesh) {
+NSEqns2D nsSetup(double kappa, Mesh mesh, bool restart) {
   NSEqns2D nsSys(mesh);
   nsSys.kappa = kappa;
-  nsSys.setUp();
+  nsSys.setUp(restart);
   return nsSys;
 }

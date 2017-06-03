@@ -18,7 +18,7 @@ class NSEqns2D {
     array2<double> v_n;
     array2<double> v_nMinus1;
 
-    void setUp(void);
+    void setUp(bool restart);
     NSEqns2D(Mesh& ref) : mesh(ref){this->mesh = mesh;}
   private:
     Mesh& mesh;

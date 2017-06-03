@@ -59,7 +59,7 @@ int main()
   //Allocate(N,M,C1_star);
   for (int i=0; i<N; i++) {
     for (int j=0; j<M; j++) {
-      C1_star[i][j] = count;
+      //C1_star[i][j] = count;
       count ++;
       cout << C1_star[i][j] << " ";
     }
