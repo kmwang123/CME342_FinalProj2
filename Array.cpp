@@ -1,4 +1,5 @@
-/*#include <math.h>
+#ifdef DEBUG
+#include <math.h>
 
 // Turning off argument checking with -DNDEBUG improves optimization.
 
@@ -19,9 +20,7 @@ template<class T>
 void g(T x) {cout << x << endl; return;}
 
 template<class T>
-double h(typename array1<T>::opt& x) {
-return x[0];
-}
+double h(typename array1<T>::opt& x) {return x[0];}
 
 int main()
 {
@@ -51,6 +50,22 @@ int main()
       }
     }
   }
+
+  //Karen Testing
+  cout << "karen testing C1_star[i][j]: " << endl;
+  int M=3, N=2, count = 0;
+  array2<double> C1_star;
+  C1_star.Allocate(N,M);
+  //Allocate(N,M,C1_star);
+  for (int i=0; i<N; i++) {
+    for (int j=0; j<M; j++) {
+      C1_star[i][j] = count;
+      count ++;
+      cout << C1_star[i][j] << " ";
+    }
+    cout << endl;
+  }
+  cout << endl;
 	
   cout << sum << endl;
 	
@@ -58,16 +73,9 @@ int main()
   g(A);	
 	
   vector x;
-  Allocate(x,4);
+  Allocate(x,1);
   x[0]=1.0;
-  x[1]=2.0;
-  x[2]=3.4;
-  x[3]=4.5;
-  cout << "this is hdouble: " << h<double>(x) << endl;
-  for (int i=0; i<4; i++) {
-    cout << x[i] << " ";
-  }
-  cout << endl;
+  cout << h<double>(x) << endl;
 
   cout << endl;
 	
@@ -97,4 +105,5 @@ int main()
   cout << D << endl;
   
   return 0;
-}*/
+}
+#endif
