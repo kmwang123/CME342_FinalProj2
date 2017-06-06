@@ -19,6 +19,7 @@ class NSEqns2D {
     array2<double> v_nMinus1;
 
     void setUp(bool restart);
+    void updateConvergedValues(void);
     NSEqns2D(Mesh& ref) : mesh(ref){this->mesh = mesh;}
   private:
     Mesh& mesh;

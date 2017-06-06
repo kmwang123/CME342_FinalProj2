@@ -33,6 +33,8 @@ class IonTransportEqns2D {
     double frand(double fMin, double fMax);
     void perturbOneConcentration(array2<double> &data);
     void printOneConcentration(string type);
+    void setCstarValuesfrmCn(void);
+    void updateConvergedValues(void);
     void GaussLawSolveStruct(void);
     void GaussLawSolveSStruct(void);
     IonTransportEqns2D(Mesh& ref, MPI_Wrapper ref2) : mesh(ref),mpi(ref2) {this-> mesh = mesh; this->mpi = mpi;} 

@@ -91,6 +91,26 @@ void IonTransportEqns2D::printOneConcentration(string type) {
   }
 }
 
+void IonTransportEqns2D::setCstarValuesfrmCn(void) {
+  for(int n = 0; n < mesh.N; n++){
+    for(int m = 0; m < mesh.M; m++){
+      C1_star[n][m] = C1_n[n][m];
+      C2_star[n][m] = C2_n[n][m];
+    }
+  }
+}
+
+void IonTransportEqns2D::updateConvergedValues(void) {
+  for(int n = 0; n < mesh.N; n++){
+    for(int m = 0; m < mesh.M; m++){
+      C1_nMinus1[n][m] = C1_n[n][m];
+      C2_nMinus1[n][m] = C2_n[n][m];
+      C1_n[n][m] = C1_star[n][m];
+      C2_n[n][m] = C2_star[n][m];
+    }
+  }
+}
+
 void IonTransportEqns2D::GaussLawSolveStruct(void) {
   /*Setup HYPRE*/
   HYPRE_StructGrid     grid;
@@ -157,7 +177,6 @@ void IonTransportEqns2D::GaussLawSolveStruct(void) {
   } 
   HYPRE_StructMatrixSetBoxValues(A, ilower, iupper, nentries,
                                  stencil_indices, values); 
-  delete [] values;
   /*Set Boundary Conditions*/
   int bc_ilower[2];
   int bc_iupper[2];
@@ -426,8 +445,22 @@ void IonTransportEqns2D::GaussLawSolveStruct(void) {
   }
   //Debug
   int ret3 = HYPRE_StructVectorPrint("xvec", x, 0);
+  //reshape and store in phi
+  HYPRE_StructVectorGetBoxValues(x,ilower,iupper,values);
+  for (int j=0; j<mesh.M; j++) {
+    for (int i=0; i<mesh.N; i++) {
+      phi[i][j] = values[j*mesh.N+i];
+    }
+  }
+  for (int i=0; i<mesh.N; i++) {
+    for (int j=0; j<mesh.M; j++) {
+      cout << phi[i][j] << " ";
+    }
+    cout << endl;
+  }
 
   /* Free memory */
+  delete [] values;
   HYPRE_StructGridDestroy(grid);
   HYPRE_StructStencilDestroy(stencil);
   HYPRE_StructMatrixDestroy(A);

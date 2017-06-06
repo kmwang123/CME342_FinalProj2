@@ -68,29 +68,52 @@ int main(int argc,char** argv)  {
   const string PHI_BC_TYPE = "constant";
   const double Phi_LHS_BC_sX = -60;
   const double Phi_RHS_BC_sX = 0;
-
+  #define NO_FLUX_BC 0
+  #define DIRICHLET_BC 1
+  #define WALL_CHARGE_BC 2
+  int C1_bcs[2] = {DIRICHLET_BC, DIRICHLET_BC};
+  //////// C2 BCS //////////////////
+  int C2_bcs[2] = {NO_FLUX_BC, DIRICHLET_BC}; 
+  /*NOTE: Side wall bc's automatically enforced (flux = 0 through walls)*/
+  /*NOTE: No slip and penetration enforced for velocity bcs*/   
+  int Ey_bcs[2] = {WALL_CHARGE_BC,WALL_CHARGE_BC}; //{north,south} 
 
   //Time Step
   const double dt = pow(epsilon,2);
-  const double T_final = 1;
+  const double T_final = pow(epsilon,2);
   const double Tvis = 1;
   const int numOfIterations = 3;
+  const int numOfTimeSteps = int(T_final/dt);
 
   /*Setup Mesh*/
   Mesh mesh = meshSetup(Lx,dz,N,beta,dx_max,dx_min,Ly,dn,M,dy_min);
   mesh.genXmesh("exponential");
   mesh.genYmesh("twoSided"); 
-  mesh.printYmesh("dydn_sY"); 
-  mesh.printYmesh("dydn_cY");
-  mesh.printXmesh("dxdz_sX");
-  mesh.printYmesh("dxdz_cX");
+ 
   /*Setup system*/
   /*Perturb C1 and C2 ions*/
   IonTransportEqns2D ionSys = ionSetup(D1,D2,epsilon,Ey_NBC_sX,Ey_SBC_sX,Phi_LHS_BC_sX,Phi_RHS_BC_sX,mesh,restart,perturb,mpi);
   NSEqns2D nsSys = nsSetup(kappa,mesh,restart);
   ionSys.printOneConcentration("C1");
 
+  //setup bc arrays
+
   ionSys.GaussLawSolveStruct();
+
+  // set first star (guess) value with the initial concentration
+  ionSys.setCstarValuesfrmCn();
+
+  /////////////////////// Begin Time Stepping ///////////////////
+  for (int time_i=1; time_i<numOfTimeSteps+1; time_i++) {
+    ////////////// Iterate within a timestep ////////////////
+    for (int k=0; k<numOfIterations; k++) {
+      cout << "hello" << endl;
+    }
+    //////////////////// End Iteration ///////////////////////
+    ionSys.updateConvergedValues();
+    nsSys.updateConvergedValues();
+  }
+
 
   MPI_Finalize();
   return 0;
