@@ -37,22 +37,29 @@ class Mesh{
     array1<double>::opt dndy_sY;
     array1<double>::opt dndy_cY;
     
-
     void genXmesh(std::string type);
     void genYmesh(std::string type);
     void printXmesh(std::string type);
     void printYmesh(std::string type);
-  /*private:
-    class GammaFunctorTwoSided {
-      public:
-        GammaFunctorTwoSided(double init_val,int nx) : dF_min_des(init_val), n(nx) {} 
-        double operator()(double gam);
-    };
-    class GammaFunctorOneSided {
-      public:
-        GammaFunctorOneSided(double init_val,int nx) : dF_min_des(init_val), n(nx) {}
-        double operator()(double gam);
-    }; */
+    private:
+      class GammaFunctorTwoSided {
+        public:
+          double dF_min_des;
+          double n;
+          GammaFunctorTwoSided(double init_val,int nx) : dF_min_des(init_val), n(nx) {} 
+          double operator()(double gam) {
+            return gam/(n*(tanh(gam/2)-tanh(-gam/2)))*pow(1/cosh(-gam/2),2)-dF_min_des;
+          }
+      };
+      class GammaFunctorOneSided {
+        public:
+          double dF_min_des;
+          double n;
+          GammaFunctorOneSided(double init_val,int nx) : dF_min_des(init_val), n(nx) {}
+          double operator()(double gam) {
+            return tanh(gam/2.*(1./n - 1.))/tanh(gam/2.) + 1. - dF_min_des;
+          }
+      }; 
 
 };
 

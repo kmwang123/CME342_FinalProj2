@@ -1,28 +1,11 @@
 #include <iostream>
 #include <fstream>
+#include <math.h>
 
 #include "mesh.hpp"
+#include "boost/math/tools/roots.hpp"
 
 using namespace std;
-
-class GammaFunctorTwoSided {
-  double dF_min_des;
-  double n;
-  GammaFunctorTwoSided(double init_val,int nx) : dF_min_des(init_val), n(nx) {} 
-  double operator()(double gam) {
-    return gam/(n*(tanh(gam/2)-tanh(-gam/2)))*pow(1/cosh(-gam/2),2)-dF_min_des; 
-  }
-};
-
-class GammaFunctorOneSided {
-  double dF_min_des;
-  double n;
-  GammaFunctorOneSided(double init_val,int nx) : dF_min_des(init_val), n(nx) {}
-  double operator()(double gam) {
-    return tanh(gam/2.*(1./n - 1.))/tanh(gam/2.) + 1. - dF_min_des;
-  }
-
-};
 
 void Mesh::genXmesh(string type) {
 
@@ -97,8 +80,42 @@ void Mesh::genYmesh(string type) {
   }
 
   //Generate Two Sided Mesh
+  if (type == "twoSided") {
+    //Calculate gamma
+    GammaFunctorTwoSided f(dy_min, M);
+    typedef std::pair<double, double> Result;
+    boost::uintmax_t max_iter=5000;
+    boost::math::tools::eps_tolerance<double> tol(50);
+    Result gamma_bounds = boost::math::tools::toms748_solve(f, 0.0000001, 100000.0, tol, max_iter);
+    double gamma = (gamma_bounds.first + gamma_bounds.second)/2.0;
 
+    //Other Mesh Constants
+    double a = double(1.0)/(tanh(gamma/double(2.0))-tanh(double(-1.0)*gamma/double(2.0)));
+    double b = double(0.5);
 
+    // Generate Staggered Mesh Points
+    double delta_cur;
+    double dyMax = 0.0;
+    for( int j = 0; j < M+1; j++){
+      double y = double(j)/double(M);
+      y_vect_sY[j] = a*tanh(gamma*(y-.5)) + b;
+      dydn_sY[j] = a*pow(1/cosh(gamma*(y-0.5)),2)*gamma/M;
+      dndy_sY[j] = 1.0/dydn_sY[j];
+      if(j > 0){
+        delta_cur = y_vect_sY[j] - y_vect_sY[j-1];
+        if(delta_cur > dyMax) dyMax = delta_cur;
+      }
+  }
+  //Generate Collocated Mesh Points
+  for( int j = 0; j < M; j++){
+        double y = (double(j)+0.5)/double(M);
+        y_vect_cY[j] = a*tanh(gamma*(y-.5))+b;
+        dydn_cY[j] = a*pow(1/cosh(gamma*(y-0.5)),2)*gamma/M;
+        dndy_cY[j] = 1.0/dydn_cY[j];
+    }
+
+    dy_min = y_vect_sY[1] - y_vect_sY[0];   
+  }
 }
 
 void Mesh::printXmesh(string type) {
@@ -116,6 +133,30 @@ void Mesh::printXmesh(string type) {
     }
     cout << endl;
   }
+  if (type == "dxdz_cX") {
+    cout << "Printing dxdz_cX: " << endl;
+    for (int i=0; i<N; i++) {
+      cout << dxdz_cX[i] << " " << endl;
+    }
+  }
+  if (type == "dxdz_sX") {
+    cout << "Printing dxdz_sX: " << endl;
+    for (int i=0; i<N+1; i++) {
+      cout << dxdz_sX[i] << " " << endl;
+    }
+  }
+  if (type == "dzdx_cX") {
+    cout << "Printing dzdx_cX: " << endl;
+    for (int i=0; i<N; i++) {
+      cout << dzdx_cX[i] << " " << endl;
+    }
+  }
+  if (type == "dzdx_sX") {
+    cout << "Printing dzdx_sX: " << endl;
+    for (int i=0; i<N+1; i++) {
+      cout << dzdx_sX[i] << " " << endl;
+    }
+  }
 }
 
 void Mesh::printYmesh(string type) {
@@ -132,5 +173,17 @@ void Mesh::printYmesh(string type) {
       cout << y_vect_sY[j] << " " << endl;
     }
     cout << endl;
+  }
+  if (type == "dydn_cY") {
+    cout << "Printing dydn_cY: " << endl;
+    for (int j=0; j<M; j++) {
+      cout << dydn_cY[j] << " " << endl;
+    }
+  }
+  if (type == "dydn_sY") {
+    cout << "Printing dydn_sY: " << endl;
+    for (int j=0; j<M+1; j++) {
+      cout << dydn_sY[j] << " " << endl;
+    }
   }
 }

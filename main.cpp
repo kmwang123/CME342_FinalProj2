@@ -11,7 +11,7 @@
 using namespace std;
 
 Mesh meshSetup(double Lx,double dz,int N,double beta,double dx_max,double dx_min, double Ly, double dn, int M, double dy_min);
-IonTransportEqns2D ionSetup(double D1, double D2, double epsilon, Mesh mesh, bool restart, bool perturb, MPI_Wrapper mpi);
+IonTransportEqns2D ionSetup(double D1, double D2, double epsilon, double Ey_NBC_sX, double Ey_SBC_sX, double Phi_LHS_BC_sX, double Phi_RHS_BC_sX, Mesh mesh, bool restart, bool perturb, MPI_Wrapper mpi);
 NSEqns2D nsSetup(double kappa, Mesh mesh, bool restart);
 
 int main(int argc,char** argv)  {
@@ -26,13 +26,13 @@ int main(int argc,char** argv)  {
   MPI_Wrapper mpi;
   mpi.p1 = 1;//p1;
   mpi.p2 = 1;//p2;
-  //cout << "mpi.p1: " << mpi.p1 << endl;
+  //cout << "mpi.myid: " << mpi.myid << endl;
   //MPI_Comm_rank(MPI_COMM_WORLD, &myid);
   //MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
   
   /*Boolean options*/
   bool restart = 0;  
-  bool perturb = 1;
+  bool perturb = 0;
 
   /*Define Constants*/
   //XMesh
@@ -52,7 +52,7 @@ int main(int argc,char** argv)  {
   //Ion Transport Physical Constants
   const double D1 = 1;
   const double D2 = 1;
-  const double epsilon = 0.01;
+  const double epsilon = 0.1;
  
   //NS Physical Constants
   const double kappa = 0; //uncoupled for now
@@ -63,11 +63,11 @@ int main(int argc,char** argv)  {
   const double C1_LHS_BC_sX = 2;
   const double C1_RHS_BC_sX = 1;
   const double C2_RHS_BC_sX = 1;
-  const double Ey_wall1 = 1./epsilon; //bottom wall
-  const double Ey_wall2 = 1./epsilon; //top wall
+  const double Ey_NBC_sX = 1./epsilon; //top wall
+  const double Ey_SBC_sX = 1./epsilon; //bottom wall
   const string PHI_BC_TYPE = "constant";
-  const double Phi_LHS_BC_sX = 0;
-  const double Phi_RHS_BC_sX = 60;
+  const double Phi_LHS_BC_sX = -60;
+  const double Phi_RHS_BC_sX = 0;
 
 
   //Time Step
@@ -79,15 +79,18 @@ int main(int argc,char** argv)  {
   /*Setup Mesh*/
   Mesh mesh = meshSetup(Lx,dz,N,beta,dx_max,dx_min,Ly,dn,M,dy_min);
   mesh.genXmesh("exponential");
-  mesh.genYmesh("uniform"); 
-  //mesh.printXmesh("x_vect_sX");
-  //mesh.printYmesh("y_vect_sY"); 
+  mesh.genYmesh("twoSided"); 
+  mesh.printYmesh("dydn_sY"); 
+  mesh.printYmesh("dydn_cY");
+  mesh.printXmesh("dxdz_sX");
+  mesh.printYmesh("dxdz_cX");
   /*Setup system*/
   /*Perturb C1 and C2 ions*/
-  IonTransportEqns2D ionSys = ionSetup(D1,D2,epsilon,mesh,restart,perturb,mpi);
+  IonTransportEqns2D ionSys = ionSetup(D1,D2,epsilon,Ey_NBC_sX,Ey_SBC_sX,Phi_LHS_BC_sX,Phi_RHS_BC_sX,mesh,restart,perturb,mpi);
   NSEqns2D nsSys = nsSetup(kappa,mesh,restart);
   ionSys.printOneConcentration("C1");
 
+  ionSys.GaussLawSolveStruct();
 
   MPI_Finalize();
   return 0;
@@ -124,11 +127,15 @@ Mesh meshSetup(double Lx,double dz,int N,double beta,double dx_max,double dx_min
   return mesh;
 }
 
-IonTransportEqns2D ionSetup(double D1, double D2, double epsilon, Mesh mesh, bool restart, bool perturb, MPI_Wrapper mpi) {
+IonTransportEqns2D ionSetup(double D1, double D2, double epsilon, double Ey_NBC_sX, double Ey_SBC_sX, double Phi_LHS_BC_sX, double Phi_RHS_BC_sX, Mesh mesh, bool restart, bool perturb, MPI_Wrapper mpi) {
   IonTransportEqns2D ionSys(mesh,mpi);
   ionSys.D1 = D1;
   ionSys.D2 = D2;
   ionSys.epsilon = epsilon;
+  ionSys.Ey_NBC_sX = Ey_NBC_sX;
+  ionSys.Ey_SBC_sX = Ey_SBC_sX;
+  ionSys.Phi_LHS_BC_sX = Phi_LHS_BC_sX;
+  ionSys.Phi_RHS_BC_sX = Phi_RHS_BC_sX;
   ionSys.setUp(restart,perturb);
   return ionSys;
 }
