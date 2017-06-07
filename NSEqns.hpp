@@ -20,6 +20,7 @@ class NSEqns2D {
 
     void setUp(bool restart);
     void updateConvergedValues(void);
+    void updateBCs(void);
     NSEqns2D(Mesh& ref) : mesh(ref){this->mesh = mesh;}
   private:
     Mesh& mesh;

@@ -36,3 +36,16 @@ void NSEqns2D::updateConvergedValues(void) {
   }
 
 }
+
+void NSEqns2D::updateBCs(void) {
+  /*LHS and RHS BCs*/
+  for (int j=0; j<mesh.M; j++) {
+    u_star[0][j] = 0.0;
+    u_star[mesh.N_s-1][j] = 0.0;
+  }
+  /*North and South BCs*/
+  for (int i=0; i<mesh.N; i++) {
+    v_star[i][0] = 0.0;
+    v_star[i][mesh.M_s-1] = 0.0;
+  }
+}

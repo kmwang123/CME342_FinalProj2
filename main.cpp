@@ -8,10 +8,12 @@
 #include "ionTransportEqns.hpp"
 #include "NSEqns.hpp"
 #include "mpiWrapper.hpp"
+#include "hypreSolver.hpp"
+
 using namespace std;
 
 Mesh meshSetup(double Lx,double dz,int N,double beta,double dx_max,double dx_min, double Ly, double dn, int M, double dy_min);
-IonTransportEqns2D ionSetup(double D1, double D2, double epsilon, double Ey_NBC_sX, double Ey_SBC_sX, double Phi_LHS_BC_sX, double Phi_RHS_BC_sX, Mesh mesh, bool restart, bool perturb, MPI_Wrapper mpi);
+IonTransportEqns2D ionSetup(double D1, double D2, double epsilon, double Ey_NBC_sX, double Ey_SBC_sX, double Phi_LHS_BC_sX, double Phi_RHS_BC_sX, double C1_LHS_BC_sX, double C1_RHS_BC_sX, double C2_RHS_BC_sX, Mesh mesh, bool restart, bool perturb, MPI_Wrapper mpi);
 NSEqns2D nsSetup(double kappa, Mesh mesh, bool restart);
 
 int main(int argc,char** argv)  {
@@ -92,13 +94,15 @@ int main(int argc,char** argv)  {
  
   /*Setup system*/
   /*Perturb C1 and C2 ions*/
-  IonTransportEqns2D ionSys = ionSetup(D1,D2,epsilon,Ey_NBC_sX,Ey_SBC_sX,Phi_LHS_BC_sX,Phi_RHS_BC_sX,mesh,restart,perturb,mpi);
+  IonTransportEqns2D ionSys = ionSetup(D1,D2,epsilon,Ey_NBC_sX,Ey_SBC_sX,Phi_LHS_BC_sX,Phi_RHS_BC_sX,C1_LHS_BC_sX,C1_RHS_BC_sX,C2_RHS_BC_sX,mesh,restart,perturb,mpi);
   NSEqns2D nsSys = nsSetup(kappa,mesh,restart);
   ionSys.printOneConcentration("C1");
 
   //setup bc arrays
+  ionSys.createBCarrays(C1_bcs,C2_bcs,Ey_bcs);
 
-  ionSys.GaussLawSolveStruct();
+  //ionSys.GaussLawSolveStruct();
+  GaussLawSolveStruct(mesh,mpi,ndim,ionSys.C1_n, ionSys.C2_n,ionSys.phi,epsilon, Ey_SBC_sX, Ey_NBC_sX, Phi_LHS_BC_sX,Phi_RHS_BC_sX,1);
 
   // set first star (guess) value with the initial concentration
   ionSys.setCstarValuesfrmCn();
@@ -107,7 +111,8 @@ int main(int argc,char** argv)  {
   for (int time_i=1; time_i<numOfTimeSteps+1; time_i++) {
     ////////////// Iterate within a timestep ////////////////
     for (int k=0; k<numOfIterations; k++) {
-      cout << "hello" << endl;
+      ionSys.updateBCs();
+      nsSys.updateBCs();
     }
     //////////////////// End Iteration ///////////////////////
     ionSys.updateConvergedValues();
@@ -150,7 +155,7 @@ Mesh meshSetup(double Lx,double dz,int N,double beta,double dx_max,double dx_min
   return mesh;
 }
 
-IonTransportEqns2D ionSetup(double D1, double D2, double epsilon, double Ey_NBC_sX, double Ey_SBC_sX, double Phi_LHS_BC_sX, double Phi_RHS_BC_sX, Mesh mesh, bool restart, bool perturb, MPI_Wrapper mpi) {
+IonTransportEqns2D ionSetup(double D1, double D2, double epsilon, double Ey_NBC_sX, double Ey_SBC_sX, double Phi_LHS_BC_sX, double Phi_RHS_BC_sX, double C1_LHS_BC_sX, double C1_RHS_BC_sX, double C2_RHS_BC_sX, Mesh mesh, bool restart, bool perturb, MPI_Wrapper mpi) {
   IonTransportEqns2D ionSys(mesh,mpi);
   ionSys.D1 = D1;
   ionSys.D2 = D2;
@@ -159,6 +164,9 @@ IonTransportEqns2D ionSetup(double D1, double D2, double epsilon, double Ey_NBC_
   ionSys.Ey_SBC_sX = Ey_SBC_sX;
   ionSys.Phi_LHS_BC_sX = Phi_LHS_BC_sX;
   ionSys.Phi_RHS_BC_sX = Phi_RHS_BC_sX;
+  ionSys.C1_LHS_BC_sX = C1_LHS_BC_sX;
+  ionSys.C1_RHS_BC_sX = C1_RHS_BC_sX;
+  ionSys.C2_RHS_BC_sX = C2_RHS_BC_sX;
   ionSys.setUp(restart,perturb);
   return ionSys;
 }
