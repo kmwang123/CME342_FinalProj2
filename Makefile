@@ -1,7 +1,7 @@
 #CXX := g++
 MPICC := mpic++
 CXXFLAGS := -O3 -Wall -Wextra -Wconversion -std=c++11 #-DNDEBUG 
-NPROCS := 1
+NPROCS := 12
 
 #HYPRE_DIR := /home/kmwang14/packages/hypre-2.10.0b/src/hypre
 HYPRE_DIR := /home/kmwang14/packages/hypre-2.11.2/src/hypre

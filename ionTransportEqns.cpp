@@ -22,13 +22,13 @@
 using namespace std;
 
 void IonTransportEqns2D::setUp(bool restart, bool perturb) {
-  C1_star.Allocate(mesh.N,mesh.M);
-  C1_n.Allocate(mesh.N,mesh.M);
-  C1_nMinus1.Allocate(mesh.N,mesh.M);
-  C2_star.Allocate(mesh.N,mesh.M);
-  C2_n.Allocate(mesh.N,mesh.M);
-  C2_nMinus1.Allocate(mesh.N,mesh.M);
-  phi.Allocate(mesh.N,mesh.M);
+  C1_star.Allocate(mesh.n,mesh.m);
+  C1_n.Allocate(mesh.n,mesh.m);
+  C1_nMinus1.Allocate(mesh.n,mesh.m);
+  C2_star.Allocate(mesh.n,mesh.m);
+  C2_n.Allocate(mesh.n,mesh.m);
+  C2_nMinus1.Allocate(mesh.n,mesh.m);
+  phi.Allocate(mesh.n,mesh.m);
 
   f1star_flux_sX.Allocate(mesh.N_s,mesh.M);
   f2star_flux_sX.Allocate(mesh.N_s,mesh.M);
@@ -36,8 +36,8 @@ void IonTransportEqns2D::setUp(bool restart, bool perturb) {
   g2star_flux_sY.Allocate(mesh.N,mesh.M_s);
 
   if (!restart) {
-    for(int i=0; i<mesh.N; i++) {
-      for (int j=0; j<mesh.M; j++) {
+    for(int i=0; i<mesh.n; i++) {
+      for (int j=0; j<mesh.m; j++) {
         C1_n[i][j] = 1.0;
         C2_n[i][j] = 1.0;
       }
@@ -114,17 +114,17 @@ double IonTransportEqns2D::frand(double fMin, double fMax) {
 void IonTransportEqns2D::perturbOneConcentration(array2<double> &data) {
   srand(1);
   double onePercentOfLocalValue;
-  array1<double>::opt netPerturbation(mesh.N);
-  array2<double> localPerturbation(mesh.N,mesh.M);
-  for (int i=0; i<mesh.N; i++) {
-    for (int j=0; j<mesh.M; j++) {
+  array1<double>::opt netPerturbation(mesh.n);
+  array2<double> localPerturbation(mesh.n,mesh.m);
+  for (int i=0; i<mesh.n; i++) {
+    for (int j=0; j<mesh.m; j++) {
       onePercentOfLocalValue = 0.00001*data[i][j];
       localPerturbation[i][j] = frand(-onePercentOfLocalValue, onePercentOfLocalValue);
       netPerturbation[i] = netPerturbation[i] + localPerturbation[i][j];
     }
   }
-  for (int i=0; i<mesh.N; i++) {
-    for (int j=0; j<mesh.M; j++) {
+  for (int i=0; i<mesh.n; i++) {
+    for (int j=0; j<mesh.m; j++) {
       data[i][j] = data[i][j] + localPerturbation[i][j] - netPerturbation[i]/mesh.M; 
     }
   }
@@ -134,8 +134,8 @@ void IonTransportEqns2D::perturbOneConcentration(array2<double> &data) {
 void IonTransportEqns2D::printOneConcentration(string type) {
   if (type == "C1") {
     cout << "C1: " << endl;
-    for (int i=0; i<mesh.N; i++) {
-      for (int j=0; j<mesh.M; j++) {
+    for (int i=0; i<mesh.n; i++) {
+      for (int j=0; j<mesh.m; j++) {
         cout << setprecision(15) << setw(19) << C1_n[i][j] << " ";
       }
       cout << endl;
@@ -143,8 +143,8 @@ void IonTransportEqns2D::printOneConcentration(string type) {
   }
   else if (type == "C2") {
     cout << "C2: " << endl;
-    for (int i=0; i<mesh.N; i++) {
-      for (int j=0; j<mesh.M; j++) {
+    for (int i=0; i<mesh.n; i++) {
+      for (int j=0; j<mesh.m; j++) {
         cout << setprecision(15) << setw(19) << C2_n[i][j] << " ";
       }
       cout << endl;
@@ -156,8 +156,8 @@ void IonTransportEqns2D::printOneConcentration(string type) {
 }
 
 void IonTransportEqns2D::setCstarValuesfrmCn(void) {
-  for(int n = 0; n < mesh.N; n++){
-    for(int m = 0; m < mesh.M; m++){
+  for(int n = 0; n < mesh.n; n++){
+    for(int m = 0; m < mesh.m; m++){
       C1_star[n][m] = C1_n[n][m];
       C2_star[n][m] = C2_n[n][m];
     }
@@ -165,8 +165,8 @@ void IonTransportEqns2D::setCstarValuesfrmCn(void) {
 }
 
 void IonTransportEqns2D::updateConvergedValues(void) {
-  for(int n = 0; n < mesh.N; n++){
-    for(int m = 0; m < mesh.M; m++){
+  for(int n = 0; n < mesh.n; n++){
+    for(int m = 0; m < mesh.m; m++){
       C1_nMinus1[n][m] = C1_n[n][m];
       C2_nMinus1[n][m] = C2_n[n][m];
       C1_n[n][m] = C1_star[n][m];
