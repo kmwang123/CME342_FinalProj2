@@ -181,7 +181,7 @@ void GaussLawSolveStruct(Mesh mesh, MPI_Wrapper mpi, int ndim, array2<double> C1
   //Set vector values
   for (int j=0; j<mesh.m; j++) {
     for (int i=0; i<mesh.n; i++) {
-      values_vec[j*mesh.n+i] = (-1./(2*epsilon*epsilon))*(C1_n[i][j]-C2_n[i][j]);
+      values_vec[j*mesh.n+i] = (-1./(2*epsilon*epsilon))*(C1_n[i+mpi.hsize][j+mpi.hsize]-C2_n[i+mpi.hsize][j+mpi.hsize]);
     }
   }
   HYPRE_StructVectorSetBoxValues(b, ilower, iupper, values_vec);
@@ -343,17 +343,18 @@ void GaussLawSolveStruct(Mesh mesh, MPI_Wrapper mpi, int ndim, array2<double> C1
   HYPRE_StructVectorGetBoxValues(x,ilower,iupper,values);
   for (int j=0; j<mesh.m; j++) {
     for (int i=0; i<mesh.n; i++) {
-      phi[i][j] = values[j*mesh.n+i];
+      phi[i+mpi.hsize][j+mpi.hsize] = values[j*mesh.n+i];
     }
   }
-  if (mpi.myid == 5) {
-  for (int i=0; i<mesh.n; i++) {
-    for (int j=0; j<mesh.m; j++) {
+  if (mpi.myid == 2) {
+  for (int i=mpi.hsize; i<mesh.n+mpi.hsize; i++) {
+    for (int j=mpi.hsize; j<mesh.m+mpi.hsize; j++) {
       cout << phi[i][j] << " ";
     }
     cout << endl;
   }
   }
+
 
   // Free memory 
   delete [] values;

@@ -3,6 +3,7 @@
 
 #include "mesh.hpp"
 #include "Array.hpp"
+#include "mpiWrapper.hpp"
 using namespace Array;
 
 class NSEqns2D {
@@ -21,8 +22,9 @@ class NSEqns2D {
     void setUp(bool restart);
     void updateConvergedValues(void);
     void updateBCs(void);
-    NSEqns2D(Mesh& ref) : mesh(ref){this->mesh = mesh;}
+    NSEqns2D(Mesh& ref, MPI_Wrapper& ref2) : mesh(ref),mpi(ref2) {this->mesh = mesh; this->mpi = mpi;}
   private:
     Mesh& mesh;
+    MPI_Wrapper& mpi;
 };
 #endif /*NSEQNS_HPP*/

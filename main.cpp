@@ -14,7 +14,7 @@ using namespace std;
 
 Mesh meshSetup(double Lx,double dz,int N,double beta,double dx_max,double dx_min, double Ly, double dn, int M, double dy_min, int p1, int p2);
 IonTransportEqns2D ionSetup(double D1, double D2, double epsilon, double Ey_NBC_sX, double Ey_SBC_sX, double Phi_LHS_BC_sX, double Phi_RHS_BC_sX, double C1_LHS_BC_sX, double C1_RHS_BC_sX, double C2_RHS_BC_sX, Mesh mesh, bool restart, bool perturb, MPI_Wrapper mpi);
-NSEqns2D nsSetup(double kappa, Mesh mesh, bool restart);
+NSEqns2D nsSetup(double kappa, Mesh mesh, bool restart, MPI_Wrapper mpi);
 
 int main(int argc,char** argv)  {
 
@@ -26,9 +26,8 @@ int main(int argc,char** argv)  {
   //int myid, num_procs;
   MPI_Init(&argc, &argv);
   MPI_Wrapper mpi;
-  mpi.p1 = 4;//p1;
+  mpi.p1 = 2;//p1;
   mpi.p2 = 3;//p2;
-  //cout << "mpi.myid: " << mpi.myid << endl;
   //MPI_Comm_rank(MPI_COMM_WORLD, &myid);
   //MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
   
@@ -40,7 +39,7 @@ int main(int argc,char** argv)  {
   //XMesh
   const double Lx = 1;
   const double dz = 1;
-  const int N = 12;//0;
+  const int N = 16;//0;
   const double beta = 0.03;
   const double dx_max = 1e-2;
   const double dx_min = 1e-4;
@@ -48,7 +47,7 @@ int main(int argc,char** argv)  {
   //YMesh
   const double Ly = 1;
   const double dn = 1;
-  const int M = 9;//0;
+  const int M = 18;//0;
   const double dy_min = 1e-2;
  
   //Ion Transport Physical Constants
@@ -84,7 +83,7 @@ int main(int argc,char** argv)  {
   const double dt = pow(epsilon,2);
   const double T_final = pow(epsilon,2);
   const double Tvis = 1;
-  const int numOfIterations = 3;
+  const int numOfIterations = 1;//3; NEED TO CHANGE BACK!!!
   const int numOfTimeSteps = int(T_final/dt);
 
   /*Setup Mesh*/
@@ -92,19 +91,19 @@ int main(int argc,char** argv)  {
   mesh.genXmesh("exponential");
   mesh.genYmesh("twoSided"); 
 
-  //mesh.printXmesh("x_vect_sX");
   //mesh.printYmesh("y_vect_sY");
+  //mesh.printYmesh("dndy_sY");
+  
  
   /*Setup system*/
   /*Perturb C1 and C2 ions*/
   IonTransportEqns2D ionSys = ionSetup(D1,D2,epsilon,Ey_NBC_sX,Ey_SBC_sX,Phi_LHS_BC_sX,Phi_RHS_BC_sX,C1_LHS_BC_sX,C1_RHS_BC_sX,C2_RHS_BC_sX,mesh,restart,perturb,mpi);
-  NSEqns2D nsSys = nsSetup(kappa,mesh,restart);
+  NSEqns2D nsSys = nsSetup(kappa,mesh,restart,mpi);
   //ionSys.printOneConcentration("C1");
 
   //setup bc arrays
   ionSys.createBCarrays(C1_bcs,C2_bcs,Ey_bcs);
 
-  //ionSys.GaussLawSolveStruct();
   GaussLawSolveStruct(mesh,mpi,ndim,ionSys.C1_n, ionSys.C2_n,ionSys.phi,epsilon, Ey_SBC_sX, Ey_NBC_sX, Phi_LHS_BC_sX,Phi_RHS_BC_sX,1);
 
   // set first star (guess) value with the initial concentration
@@ -115,11 +114,18 @@ int main(int argc,char** argv)  {
     ////////////// Iterate within a timestep ////////////////
     for (int k=0; k<numOfIterations; k++) {
       ionSys.updateBCs();
-      nsSys.updateBCs();
+      //nsSys.updateBCs();
+      
+      //update Halos, wait
+      
+      //update interior
+      ionSys.updateInteriorFluxes(nsSys.u_star,nsSys.v_star);
+ 
+      //update boundaries
     }
     //////////////////// End Iteration ///////////////////////
     ionSys.updateConvergedValues();
-    nsSys.updateConvergedValues();
+    //nsSys.updateConvergedValues();
   }
 
 
@@ -142,7 +148,9 @@ Mesh meshSetup(double Lx,double dz,int N,double beta,double dx_max,double dx_min
   mesh.M_s = M+1;
   mesh.dy_min = dy_min;
   mesh.n = N/p1;
+  mesh.n_s = mesh.n+1;
   mesh.m = M/p2;
+  mesh.m_s = mesh.m+1;
   Allocate(mesh.x_vect_cX,mesh.N);
   Allocate(mesh.x_vect_sX,mesh.N_s);
   Allocate(mesh.y_vect_cY,mesh.M);
@@ -176,8 +184,8 @@ IonTransportEqns2D ionSetup(double D1, double D2, double epsilon, double Ey_NBC_
   return ionSys;
 }
 
-NSEqns2D nsSetup(double kappa, Mesh mesh, bool restart) {
-  NSEqns2D nsSys(mesh);
+NSEqns2D nsSetup(double kappa, Mesh mesh, bool restart, MPI_Wrapper mpi) {
+  NSEqns2D nsSys(mesh,mpi);
   nsSys.kappa = kappa;
   nsSys.setUp(restart);
   return nsSys;

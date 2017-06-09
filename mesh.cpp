@@ -122,39 +122,39 @@ void Mesh::printXmesh(string type) {
   if (type == "x_vect_cX") {
     cout << "Printing x_vect_cX: " << endl;
     for (int i=0; i<N; i++) {
-      cout << x_vect_cX[i] << " " << endl;
+      cout << setprecision(15) << setw(19) << x_vect_cX[i] << " " << endl;
     }
     cout << endl;
   }
   if (type == "x_vect_sX") {
     cout << "Printing x_vect_sX: " << endl;
     for (int i=0; i<N+1; i++) {
-      cout << x_vect_sX[i] << " " << endl;
+      cout << setprecision(15) << setw(19) << x_vect_sX[i] << " " << endl;
     }
     cout << endl;
   }
   if (type == "dxdz_cX") {
     cout << "Printing dxdz_cX: " << endl;
     for (int i=0; i<N; i++) {
-      cout << dxdz_cX[i] << " " << endl;
+      cout << setprecision(15) << setw(19) << dxdz_cX[i] << " " << endl;
     }
   }
   if (type == "dxdz_sX") {
     cout << "Printing dxdz_sX: " << endl;
     for (int i=0; i<N+1; i++) {
-      cout << dxdz_sX[i] << " " << endl;
+      cout << setprecision(15) << setw(19) << dxdz_sX[i] << " " << endl;
     }
   }
   if (type == "dzdx_cX") {
     cout << "Printing dzdx_cX: " << endl;
     for (int i=0; i<N; i++) {
-      cout << dzdx_cX[i] << " " << endl;
+      cout << setprecision(15) << setw(19) << dzdx_cX[i] << " " << endl;
     }
   }
   if (type == "dzdx_sX") {
     cout << "Printing dzdx_sX: " << endl;
     for (int i=0; i<N+1; i++) {
-      cout << dzdx_sX[i] << " " << endl;
+      cout << setprecision(15) << setw(19) << dzdx_sX[i] << " " << endl;
     }
   }
 }
@@ -163,27 +163,39 @@ void Mesh::printYmesh(string type) {
   if (type == "y_vect_cY") {
     cout << "Printing y_vect_cY: " << endl;
     for (int j=0; j<M; j++) {
-      cout << y_vect_cY[j] << " " << endl;
+      cout << setprecision(15) << setw(19) << y_vect_cY[j] << " " << endl;
     }
     cout << endl;
   }
   if (type == "y_vect_sY") {
     cout << "Printing y_vect_sY: " << endl;
     for (int j=0; j<M+1; j++) {
-      cout << y_vect_sY[j] << " " << endl;
+      cout << setprecision(15) << setw(19) << y_vect_sY[j] << " " << endl;
     }
     cout << endl;
   }
   if (type == "dydn_cY") {
     cout << "Printing dydn_cY: " << endl;
     for (int j=0; j<M; j++) {
-      cout << dydn_cY[j] << " " << endl;
+      cout << setprecision(15) << setw(19) << dydn_cY[j] << " " << endl;
     }
   }
   if (type == "dydn_sY") {
     cout << "Printing dydn_sY: " << endl;
     for (int j=0; j<M+1; j++) {
-      cout << dydn_sY[j] << " " << endl;
+      cout << setprecision(15) << setw(19) << dydn_sY[j] << " " << endl;
+    }
+  }
+  if (type == "dndy_cY") {
+    cout << "Printing dndy_cY: " << endl;
+    for (int j=0; j<M; j++) {
+      cout << setprecision(15) << setw(19) << dndy_cY[j] << " " << endl;
+    }
+  }
+  if (type == "dndy_sY") {
+    cout << "Printing dndy_sY: " << endl;
+    for (int j=0; j<M_s; j++) {
+      cout << setprecision(15) << setw(19) << dndy_sY[j] << " " << endl;
     }
   }
 }

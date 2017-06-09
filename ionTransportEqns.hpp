@@ -42,15 +42,18 @@ class IonTransportEqns2D {
     array2<double> Ex_star_sX;
     array2<double> Ey_star_sY;
  
+    int istartc, iendc, jstartc, jendc;
+
     void setUp(bool restart, bool perturb);
     void createBCarrays(int C1_bcs[2], int C2_bcs[2], int Ey_bcs[2]);
     void updateBCs(void);
+    void updateInteriorFluxes(array2<double> u_star, array2<double> v_star);
     double frand(double fMin, double fMax);
     void perturbOneConcentration(array2<double> &data);
     void printOneConcentration(string type);
     void setCstarValuesfrmCn(void);
     void updateConvergedValues(void);
-    IonTransportEqns2D(Mesh& ref, MPI_Wrapper ref2) : mesh(ref),mpi(ref2) {this-> mesh = mesh; this->mpi = mpi;} 
+    IonTransportEqns2D(Mesh& ref, MPI_Wrapper& ref2) : mesh(ref),mpi(ref2) {this-> mesh = mesh; this->mpi = mpi;} 
   private:
     Mesh& mesh;
     MPI_Wrapper& mpi;

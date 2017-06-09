@@ -11,6 +11,7 @@ class MPI_Wrapper {
     int num_procs;
     int p1;
     int p2;
+    int hsize = 1;
     MPI_Comm comm;
     MPI_Wrapper();
 

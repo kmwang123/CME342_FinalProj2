@@ -15,7 +15,9 @@ class Mesh{
     int M;
     int M_s;
     int n;
+    int n_s;
     int m;
+    int m_s;
     double Ly;
     double Lx;
     double beta;
