@@ -32,11 +32,11 @@ void MPI_Wrapper::getNeighbors(void) {
   }
   //figure out which neighbors are to the north
   if (pj != p2-1) {
-    neighbor[NORTH] = myid+p1;
+    neighbor[SOUTH] = myid+p1;
   }
   //figure out which neighbors are to the south
   if (pj != 0) {
-    neighbor[SOUTH] = myid-p1;
+    neighbor[NORTH] = myid-p1;
   }
   /*if (myid==2) {
     for (int i=0; i<numNeighbors; i++) {
@@ -44,4 +44,41 @@ void MPI_Wrapper::getNeighbors(void) {
     }
   }*/
 
+}
+
+void MPI_Wrapper::isend(array1<double>::opt temp, int count, string type, int dir, int req_num) {
+
+  if (type == "double") {
+   /* if (myid == 1) {
+      for (int j=0; j<count; j++) {
+        cout << "sending: " << temp[j] << endl;
+      }
+    }*/
+    MPI_Isend(temp,count,MPI_DOUBLE,neighbor[dir],0,comm,&send_request[req_num]); 
+    
+  }
+  else {
+    cout << "invalid MPI_Isend type" << endl;
+  }
+}
+
+void MPI_Wrapper::irecv(array1<double>::opt temp, int count, string type, int dir, int req_num) {
+
+  if (type == "double") {
+    MPI_Irecv(temp,count,MPI_DOUBLE,neighbor[dir],0,comm,&recv_request[req_num]);
+  }
+  else {
+    cout << "invalid MPI_IRecv type" << endl;
+  }
+}
+
+void MPI_Wrapper::waitall(string type) {
+  if (type == "recv") {
+    MPI_Wait(&recv_request[0],&status[0]);
+    //MPI_Waitall(2,recv_request,status);
+  }
+  else if (type == "send") {
+    MPI_Wait(&send_request[0],&status[0]);
+    //MPI_Waitall(2,send_request,status);
+  }
 }

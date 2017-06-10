@@ -119,12 +119,12 @@ int main(int argc,char** argv)  {
       ionSys.updateBCs();
       //nsSys.updateBCs();
       
-      //update flux halos, wait
-      ionSys.updateBoundaryFluxes(nsSys.u_star,nsSys.v_star);
-      //update interior
-      ionSys.updateInteriorFluxes(nsSys.u_star,nsSys.v_star);
- 
+      //update flux halos
+      ionSys.updateFluxes(nsSys.u_star,nsSys.v_star);
+      //update interior, wait all
+      //ionSys.updateInteriorFluxes(nsSys.u_star,nsSys.v_star);
       //update boundaries
+      //ionSys.updateBoundaryFluxes(nsSys.u_star,nsSys.v_star);
     }
     //////////////////// End Iteration ///////////////////////
     ionSys.updateConvergedValues();

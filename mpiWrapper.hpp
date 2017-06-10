@@ -15,6 +15,10 @@ class MPI_Wrapper {
     int p2;
     int pi;
     int pj;
+    MPI_Request send_request[2];
+    MPI_Request recv_request[2];
+    MPI_Status status[2];
+
     int numNeighbors = 4;
     int hsize = 1;
     array1<int>::opt neighbor;
@@ -22,6 +26,9 @@ class MPI_Wrapper {
     MPI_Wrapper();
 
     void getNeighbors(void);
+    void isend(array1<double>::opt temp, int count, string type, int dir, int req_num);
+    void irecv(array1<double>::opt temp, int count, string type, int dir, int req_num); 
+    void waitall(string type);
 
 };
 

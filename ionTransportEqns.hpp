@@ -43,12 +43,16 @@ class IonTransportEqns2D {
     array2<double> Ey_star_sY;
  
     int istartc, iendc, jstartc, jendc;
+ 
+    array1<double>::opt halo_m;
+    array1<double>::opt halo_n;
 
     void setUp(bool restart, bool perturb);
     void createBCarrays(int C1_bcs[2], int C2_bcs[2], int Ey_bcs[2]);
     void updateBCs(void);
-    void updateBoundaryFluxes(array2<double> u_star, array2<double> v_star);
+    void updateFluxes(array2<double> u_star, array2<double> v_star);
     void updateInteriorFluxes(array2<double> u_star, array2<double> v_star);
+    void updateBoundaryFluxes(array2<double> u_star, array2<double> v_star);
     double frand(double fMin, double fMax);
     void perturbOneConcentration(array2<double> &data);
     void printOneConcentration(string type);
