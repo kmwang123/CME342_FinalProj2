@@ -122,7 +122,7 @@ int main(int argc,char** argv)  {
       //send halo cell-centered values, update interior flux, update boundary flux
       ionSys.sendCenters_updateFluxes(nsSys.u_star,nsSys.v_star);
       //send halo fluxes, update interior rhs, update boundary rhs
-      //ionSys.sendFluxes_updateRHS(time_i);
+      ionSys.sendFluxes_updateRHS(time_i);
       //ionSys.updateBoundaryFluxes(nsSys.u_star,nsSys.v_star);
     }
     //////////////////// End Iteration ///////////////////////

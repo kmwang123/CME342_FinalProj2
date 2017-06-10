@@ -171,11 +171,95 @@ void IonTransportEqns2D::updateBCs(void) {
 }
 
 void IonTransportEqns2D::sendFluxes_updateRHS(int time_i) {
+  MPI_Request request[2];
+  MPI_Request send_req[2];
+  MPI_Status status[2];
+  Allocate(halo_m,2*mesh.m);
+  Allocate(halo_n,2*mesh.n);
+
+  //recv info if there is a neighbor to the left
+  if (mpi.neighbor[LEFT] != -1) {
+    MPI_Irecv(halo_m,2*mesh.m,MPI_DOUBLE,mpi.neighbor[LEFT],0,mpi.comm,&request[0]);
+
+  }
+  //otherwise, send info to neighbor on the right
+  if (mpi.neighbor[RIGHT] != -1) {
+    for (int j=0; j<2*mesh.m; j++) {
+      if (j>=0 && j < mesh.m)
+        halo_m[j] = f1star_flux_sX[mesh.n_s-1][j];
+      if (j>= mesh.m && j <2*mesh.m)
+        halo_m[j] = f2star_flux_sX[mesh.n_s-1][j-mesh.m];
+    }
+      MPI_Isend(halo_m,2*mesh.m,MPI_DOUBLE,mpi.neighbor[RIGHT],0,mpi.comm,&send_req[0]);
+  }
+
+  //recv info if there is a neighbor to the north
+  if (mpi.neighbor[NORTH] != -1) {
+    MPI_Irecv(halo_n,2*mesh.n,MPI_DOUBLE,mpi.neighbor[NORTH],0,mpi.comm,&request[1]);
+  }
+  //otherwise, send info to neighbor to the south
+  if (mpi.neighbor[SOUTH] != -1) {
+    for (int i=0; i<2*mesh.n; i++) {
+      if (i>=0 && i< mesh.n)
+        halo_n[i] = g1star_flux_sY[i][mesh.m_s-1];
+      if (i>= mesh.n && i <2*mesh.n)
+        halo_n[i] = g2star_flux_sY[i-mesh.n][mesh.m_s-1];
+    }
+      MPI_Isend(halo_n,2*mesh.n,MPI_DOUBLE,mpi.neighbor[SOUTH],0,mpi.comm,&send_req[1]);
+  }
+
+  //update interior rhs 
+
+  //update L and R
+  if (mpi.neighbor[RIGHT] != -1) 
+    MPI_Wait(&send_req[0],&status[0]);
+  if (mpi.neighbor[LEFT] != -1) {
+    MPI_Wait(&request[0],&status[0]);
+    //after recv'ed, unpack and store in flux matrices
+    for (int j=0; j<2*mesh.m; j++) {
+      if (j>=0 && j < mesh.m)
+        f1star_flux_sX[0][j] = halo_m[j];
+      if (j>= mesh.m && j <2*mesh.m)
+        f2star_flux_sX[0][j-mesh.m] = halo_m[j];
+    }
+    /*for (int j=0; j<mesh.m; j++) {
+      for (int i=0; i<mesh.n_s; i++) {
+      if (mpi.myid == 2) {
+        cout << setprecision(15) << setw(19) << f1star_flux_sX[i][j] << " ";
+      }
+    }
+    cout << endl;
+  }*/
+  }
+  
+  //update S and N
+  if (mpi.neighbor[SOUTH] != -1) 
+    MPI_Wait(&send_req[1],&status[1]);
+  if (mpi.neighbor[NORTH] != -1) {
+    MPI_Wait(&request[1],&status[1]);
+    //after recv'ed, unpack and store in matrices
+    for (int i=0; i<2*mesh.n; i++) {
+      if (i>=0 && i< mesh.n)
+        g1star_flux_sY[i][0] = halo_n[i];
+      if (i>= mesh.n && i <2*mesh.n)
+        g2star_flux_sY[i-mesh.n][0] = halo_n[i];
+    }
+
+   for (int j=0; j<mesh.m_s; j++) {
+    for (int i=0; i<mesh.n; i++) {
+      if (mpi.myid == 2){
+        cout << setprecision(15) << setw(19) << g2star_flux_sY[i][j] << " ";
+    }}
+    cout << endl;
+    } 
+  }
+
+  //update boundary rhs 
 
 }
 
 void IonTransportEqns2D::sendCenters_updateFluxes(array2<double> u_star, array2<double> v_star) {
-  int req_num = 0;
+  //int req_num = 0;
   MPI_Request request[2];
   MPI_Request send_req[2];
   MPI_Status status[2];
@@ -271,7 +355,7 @@ void IonTransportEqns2D::sendCenters_updateFluxes(array2<double> u_star, array2<
       if (i>=2*mesh.n && i<3*mesh.n)
         C2_star[istartc+i-2*mesh.n][jendc+1] = halo_n[i];
     }
-    /*for (int j=0; j<=jendc+1; j++) {
+   /* for (int j=0; j<=jendc+1; j++) {
       for (int i=0; i<=iendc+1; i++) {
         if (mpi.myid == 2){
           cout << setprecision(15) << setw(19) << phi[i][j] << " ";
@@ -293,9 +377,9 @@ void IonTransportEqns2D::sendCenters_updateFluxes(array2<double> u_star, array2<
   //update boundary fluxes
   updateBoundaryFluxes(u_star,v_star);
 
+   halo_m.Deallocate();
+   halo_n.Deallocate();
 
-
-  //need to wait for all fluxes to be sent, then update boundary fluxes and compute
 }
 
 void IonTransportEqns2D::updateBoundaryFluxes(array2<double> u_star, array2<double> v_star) {
@@ -347,14 +431,14 @@ void IonTransportEqns2D::updateBoundaryFluxes(array2<double> u_star, array2<doub
                            - 0.5*(C2_star[istartc+i][jstartc+jendY]+C2_star[istartc+i][jstartc+jendY-1])*(D2*v_star[i][jendY]);//advection  
     }
   }
-  for (int j=0; j<mesh.m_s; j++) {
+  /*for (int j=0; j<mesh.m_s; j++) {
     for (int i=0; i<mesh.n; i++) {
-      if (mpi.myid == 0){
+      if (mpi.myid == 2){
         cout << setprecision(15) << setw(19) << g2star_flux_sY[i][j] << " ";
     }}
     cout << endl;
-  }
-  /*for (int j=0; j<mesh.m; j++) { 
+  }*/
+ /* for (int j=0; j<mesh.m; j++) { 
     for (int i=0; i<mesh.n_s; i++) {
      if (mpi.myid == 3) {
         cout << setprecision(15) << setw(19) << f1star_flux_sX[i][j] << " ";
@@ -366,8 +450,8 @@ void IonTransportEqns2D::updateBoundaryFluxes(array2<double> u_star, array2<doub
 }
 
 void IonTransportEqns2D::updateInteriorFluxes(array2<double> u_star, array2<double> v_star) { 
-  if (mpi.myid == 0)
-  cout << "interior fluxes: " << endl;
+  //if (mpi.myid == 0)
+  //cout << "interior fluxes: " << endl;
 
   int pi, pj;
   pi = mpi.myid % mpi.p1;
