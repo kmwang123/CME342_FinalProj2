@@ -28,6 +28,9 @@ int main(int argc,char** argv)  {
   MPI_Wrapper mpi;
   mpi.p1 = 2;//p1;
   mpi.p2 = 3;//p2;
+  mpi.pi = mpi.myid % mpi.p1;
+  mpi.pj = mpi.myid / mpi.p1;
+  mpi.getNeighbors();
   //MPI_Comm_rank(MPI_COMM_WORLD, &myid);
   //MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
   
@@ -116,8 +119,8 @@ int main(int argc,char** argv)  {
       ionSys.updateBCs();
       //nsSys.updateBCs();
       
-      //update Halos, wait
-      
+      //update flux halos, wait
+      ionSys.updateBoundaryFluxes(nsSys.u_star,nsSys.v_star);
       //update interior
       ionSys.updateInteriorFluxes(nsSys.u_star,nsSys.v_star);
  

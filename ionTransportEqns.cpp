@@ -164,6 +164,10 @@ void IonTransportEqns2D::updateBCs(void) {
   }
 }
 
+void IonTransportEqns2D::updateBoundaryFluxes(array2<double> u_star, array2<double> v_star) {
+
+}
+
 void IonTransportEqns2D::updateInteriorFluxes(array2<double> u_star, array2<double> v_star) { 
   if (mpi.myid == 0)
   cout << "interior fluxes: " << endl;
@@ -176,7 +180,7 @@ void IonTransportEqns2D::updateInteriorFluxes(array2<double> u_star, array2<doub
     for (int j=0; j<mesh.m; j++) {
  
       //electric field in x-dir
-      Ex_star_sX[i][j] = -(1/mesh.dz)*mesh.dzdx_sX[i]*(phi[istartc+i][jstartc+j]-phi[istartc+i-1][jstartc+j]); 
+      Ex_star_sX[i][j] = -(1/mesh.dz)*mesh.dzdx_sX[pi*mesh.n+i]*(phi[istartc+i][jstartc+j]-phi[istartc+i-1][jstartc+j]); 
 
       //flux of positive ions in x-dir
       f1star_flux_sX[i][j] = f1star_flux_sX[i][j]
@@ -225,15 +229,15 @@ void IonTransportEqns2D::updateInteriorFluxes(array2<double> u_star, array2<doub
     }}
     cout << endl;
   }*/
-  /*for (int j=0; j<mesh.m; j++) { 
+  for (int j=0; j<mesh.m; j++) { 
     for (int i=0; i<mesh.n_s; i++) {
-     if (mpi.myid == 2) {
-        //cout << setprecision(15) << setw(19) << Ex_star_sX[i][j] << " ";
-        cout << setprecision(15) << setw(19) << f1star_flux_sX[i][j] << " ";
+     if (mpi.myid == 3) {
+        cout << setprecision(15) << setw(19) << Ex_star_sX[i][j] << " ";
+        //cout << setprecision(15) << setw(19) << f1star_flux_sX[i][j] << " ";
       }
     }
     cout << endl;
-  }*/
+  }
 
 }
 
