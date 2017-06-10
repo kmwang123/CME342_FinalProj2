@@ -170,8 +170,11 @@ void IonTransportEqns2D::updateBCs(void) {
   }
 }
 
+void IonTransportEqns2D::sendFluxes_updateRHS(int time_i) {
 
-void IonTransportEqns2D::updateFluxes(array2<double> u_star, array2<double> v_star) {
+}
+
+void IonTransportEqns2D::sendCenters_updateFluxes(array2<double> u_star, array2<double> v_star) {
   int req_num = 0;
   MPI_Request request[2];
   MPI_Request send_req[2];
@@ -241,6 +244,7 @@ void IonTransportEqns2D::updateFluxes(array2<double> u_star, array2<double> v_st
     }
     //calculate f_fluxes across iendc+1 and iendc
     
+    
     //send these fluxes to right 
     
     /*for (int j=0; j<=jendc+1; j++) {
@@ -286,11 +290,79 @@ void IonTransportEqns2D::updateFluxes(array2<double> u_star, array2<double> v_st
       cout << endl;
     }*/
 
-  //update interior cells
+  //update boundary fluxes
+  updateBoundaryFluxes(u_star,v_star);
 
 
 
   //need to wait for all fluxes to be sent, then update boundary fluxes and compute
+}
+
+void IonTransportEqns2D::updateBoundaryFluxes(array2<double> u_star, array2<double> v_star) {
+   
+  int iendX = mesh.n_s-1;
+  int jendY = mesh.m_s-1;
+
+  if (mpi.neighbor[RIGHT] != -1) {
+    //x-dir
+    for (int j=0; j<mesh.m; j++) {
+      //e-field in x-dir
+      Ex_star_sX[iendX][j] = -(1/mesh.dz)*mesh.dzdx_sX[mpi.pi*mesh.n+iendX]*(phi[istartc+iendX][jstartc+j]-phi[istartc+iendX-1][jstartc+j]);
+      //flux of positive ions in x-dir
+      f1star_flux_sX[iendX][j] = f1star_flux_sX[iendX][j]
+                           -D1*(1/mesh.dz)*(mesh.dzdx_sX[mpi.pi*mesh.n+iendX])*(C1_star[istartc+iendX][jstartc+j]-C1_star[istartc+iendX-1][jstartc+j]); //diffusion 
+      f1star_flux_sX[iendX][j] = f1star_flux_sX[iendX][j]
+                            + 0.5*(C1_star[istartc+iendX][jstartc+j]+C1_star[istartc+iendX-1][jstartc+j])*(D1*Ex_star_sX[iendX][j]);//em
+      f1star_flux_sX[iendX][j] = f1star_flux_sX[iendX][j]
+                            + 0.5*(C1_star[istartc+iendX][jstartc+j]+C1_star[istartc+iendX-1][jstartc+j])*(D1*u_star[iendX][j]);//advection
+      //flux of negative ions in y-dir
+      f2star_flux_sX[iendX][j] = f2star_flux_sX[iendX][j]
+                            -D2*(1/mesh.dz)*(mesh.dz)*(mesh.dzdx_sX[mpi.pi*mesh.n+iendX])*(C2_star[istartc+iendX][jstartc+j]-C2_star[istartc+iendX-1][jstartc+j]); //diffusion
+      f2star_flux_sX[iendX][j] = f2star_flux_sX[iendX][j]
+                            - 0.5*(C2_star[istartc+iendX][jstartc+j]+C2_star[istartc+iendX-1][jstartc+j])*(D2*Ex_star_sX[iendX][j]);//em
+      f2star_flux_sX[iendX][j] = f2star_flux_sX[iendX][j]
+                            - 0.5*(C2_star[istartc+iendX][jstartc+j]+C2_star[istartc+iendX-1][jstartc+j])*(D2*u_star[iendX][j]);//advection
+    }
+  } 
+
+
+  if (mpi.neighbor[SOUTH] != -1) {
+    //y-dir
+    for (int i=0; i<mesh.n; i++) {
+      //electric field in y-dir
+      Ey_star_sY[i][jendY] = -(1/mesh.dn)*mesh.dndy_sY[mpi.pj*mesh.m+jendY]*(phi[istartc+i][jstartc+jendY]-phi[istartc+i][jstartc+jendY-1]);
+      //flux of positive ions in y-dir
+      g1star_flux_sY[i][jendY] = g1star_flux_sY[i][jendY]
+                             -D1*(1/mesh.dn)*mesh.dndy_sY[mpi.pj*mesh.m+jendY]*(C1_star[istartc+i][jstartc+jendY]-C1_star[istartc+i][jstartc+jendY-1]); //diffusion
+      g1star_flux_sY[i][jendY] = g1star_flux_sY[i][jendY]
+                            + 0.5*(C1_star[istartc+i][jstartc+jendY]+C1_star[istartc+i][jstartc+jendY-1])*(D1*Ey_star_sY[i][jendY]);//em
+      g1star_flux_sY[i][jendY] = g1star_flux_sY[i][jendY]
+                            + 0.5*(C1_star[istartc+i][jstartc+jendY]+C1_star[istartc+i][jstartc+jendY-1])*(D1*v_star[i][jendY]);//advection 
+      //flux of negative ions in y-dir
+      g2star_flux_sY[i][jendY] = g2star_flux_sY[i][jendY]
+                           -D2*(1/mesh.dn)*mesh.dndy_sY[mpi.pj*mesh.m+jendY]*(C2_star[istartc+i][jstartc+jendY]-C2_star[istartc+i][jstartc+jendY-1]); //diffusion
+      g2star_flux_sY[i][jendY] = g2star_flux_sY[i][jendY]
+                           - 0.5*(C2_star[istartc+i][jstartc+jendY]+C2_star[istartc+i][jstartc+jendY-1])*(D2*Ey_star_sY[i][jendY]);//em
+      g2star_flux_sY[i][jendY] = g2star_flux_sY[i][jendY]
+                           - 0.5*(C2_star[istartc+i][jstartc+jendY]+C2_star[istartc+i][jstartc+jendY-1])*(D2*v_star[i][jendY]);//advection  
+    }
+  }
+  for (int j=0; j<mesh.m_s; j++) {
+    for (int i=0; i<mesh.n; i++) {
+      if (mpi.myid == 0){
+        cout << setprecision(15) << setw(19) << g2star_flux_sY[i][j] << " ";
+    }}
+    cout << endl;
+  }
+  /*for (int j=0; j<mesh.m; j++) { 
+    for (int i=0; i<mesh.n_s; i++) {
+     if (mpi.myid == 3) {
+        cout << setprecision(15) << setw(19) << f1star_flux_sX[i][j] << " ";
+      }
+    }
+    cout << endl;
+  }*/
+
 }
 
 void IonTransportEqns2D::updateInteriorFluxes(array2<double> u_star, array2<double> v_star) { 
@@ -316,7 +388,7 @@ void IonTransportEqns2D::updateInteriorFluxes(array2<double> u_star, array2<doub
                             + 0.5*(C1_star[istartc+i][jstartc+j]+C1_star[istartc+i-1][jstartc+j])*(D1*u_star[i][j]);//advection
       //flux of negative ions in y-dir
       f2star_flux_sX[i][j] = f2star_flux_sX[i][j]
-                            -D1*(1/mesh.dz)*(mesh.dz)*(mesh.dzdx_sX[pi*mesh.n+i])*(C2_star[istartc+i][jstartc+j]-C2_star[istartc+i-1][jstartc+j]); //diffusion
+                            -D2*(1/mesh.dz)*(mesh.dz)*(mesh.dzdx_sX[pi*mesh.n+i])*(C2_star[istartc+i][jstartc+j]-C2_star[istartc+i-1][jstartc+j]); //diffusion
       f2star_flux_sX[i][j] = f2star_flux_sX[i][j]
                             - 0.5*(C2_star[istartc+i][jstartc+j]+C2_star[istartc+i-1][jstartc+j])*(D2*Ex_star_sX[i][j]);//em
       f2star_flux_sX[i][j] = f2star_flux_sX[i][j]
@@ -350,8 +422,7 @@ void IonTransportEqns2D::updateInteriorFluxes(array2<double> u_star, array2<doub
   /*for (int j=0; j<mesh.m_s; j++) {
     for (int i=0; i<mesh.n; i++) {
       if (mpi.myid == 2){
-        cout << setprecision(15) << setw(19) << Ey_star_sY[i][j] << " ";
-        //cout << setprecision(15) << setw(19) << g2star_flux_sY[i][j] << " ";
+        cout << setprecision(15) << setw(19) << g2star_flux_sY[i][j] << " ";
     }}
     cout << endl;
   }*/
@@ -360,7 +431,6 @@ void IonTransportEqns2D::updateInteriorFluxes(array2<double> u_star, array2<doub
     for (int i=0; i<mesh.n_s; i++) {
      if (mpi.myid == 3) {
         cout << setprecision(15) << setw(19) << Ex_star_sX[i][j] << " ";
-        //cout << setprecision(15) << setw(19) << f1star_flux_sX[i][j] << " ";
       }
     }
     cout << endl;
