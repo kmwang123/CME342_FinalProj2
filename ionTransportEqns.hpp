@@ -12,6 +12,7 @@ class IonTransportEqns2D {
 
   public:
     int ndim = 2;
+    bool restart;
     double D1;
     double D2;
     double epsilon;
@@ -41,6 +42,9 @@ class IonTransportEqns2D {
     array2<double> g2star_flux_sY;
     array2<double> Ex_star_sX;
     array2<double> Ey_star_sY;
+
+    array2<double> RHS_C1_star;
+    array2<double> RHS_C2_star;
  
     int istartc, iendc, jstartc, jendc;
  
@@ -50,7 +54,9 @@ class IonTransportEqns2D {
     void setUp(bool restart, bool perturb);
     void createBCarrays(int C1_bcs[2], int C2_bcs[2], int Ey_bcs[2]);
     void updateBCs(void);
-    void sendFluxes_updateRHS(int time_i);
+    void sendFluxes_updateRHS(int time_i, double dt);
+    void updateInteriorRHS(int time_i, double dt);
+    void updateBoundaryRHS(int time_i, double dt);
     void sendCenters_updateFluxes(array2<double> u_star, array2<double> v_star);
     void updateBoundaryFluxes(array2<double> u_star, array2<double> v_star);
     void updateInteriorFluxes(array2<double> u_star, array2<double> v_star);

@@ -346,14 +346,14 @@ void GaussLawSolveStruct(Mesh mesh, MPI_Wrapper mpi, int ndim, array2<double> C1
       phi[i+mpi.hsize][j+mpi.hsize] = values[j*mesh.n+i];
     }
   }
-  if (mpi.myid == 2) {
+  /*if (mpi.myid == 2) {
   for (int i=mpi.hsize; i<mesh.n+mpi.hsize; i++) {
     for (int j=mpi.hsize; j<mesh.m+mpi.hsize; j++) {
       cout << phi[i][j] << " ";
     }
     cout << endl;
   }
-  }
+  }*/
 
 
   // Free memory 
