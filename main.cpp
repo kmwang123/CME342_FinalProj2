@@ -84,7 +84,7 @@ int main(int argc,char** argv)  {
 
   //Time Step
   const double dt = pow(epsilon,2);
-  const double T_final = pow(epsilon,2);
+  const double T_final = dt;
   const double Tvis = 1;
   const int numOfIterations = 1;//3; NEED TO CHANGE BACK!!!
   const int numOfTimeSteps = int(T_final/dt);

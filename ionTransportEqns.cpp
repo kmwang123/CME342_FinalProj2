@@ -262,10 +262,94 @@ void IonTransportEqns2D::sendFluxes_updateRHS(int time_i, double dt) {
 
   //update boundary rhs 
   updateBoundaryRHS(time_i,dt);
+  halo_m.Deallocate();
+  halo_n.Deallocate();
 }
 
 void IonTransportEqns2D::updateBoundaryRHS(int time_i, double dt) {
+  // Add in the appropriate time term depending on which 
+  // scheme is being used (1st order step 1, 2nd otherwise)
+  if( time_i == 1 && !restart){
+    for (int j=0; j<mesh.m; j++) {
+      //north
+      RHS_C1_star[0][j] = -(C1_star[istartc][jstartc+j] - C1_n[istartc][jstartc+j])/dt
+                                - (1/mesh.dz)*mesh.dzdx_cX[mpi.pi*mesh.n]*(f1star_flux_sX[1][j]-f1star_flux_sX[0][j])
+                                - (1/mesh.dn)*mesh.dndy_cY[mpi.pj*mesh.m+j]*(g1star_flux_sY[0][j+1]-g1star_flux_sY[0][j]);
+      RHS_C2_star[0][j] = -(C2_star[istartc][jstartc+j] - C2_n[istartc][jstartc+j])/dt
+                          - (1/mesh.dz)*mesh.dzdx_cX[mpi.pi*mesh.n]*(f2star_flux_sX[1][j]-f2star_flux_sX[0][j])
+                          - (1/mesh.dn)*mesh.dndy_cY[mpi.pj*mesh.m+j]*(g2star_flux_sY[0][j+1]-g2star_flux_sY[0][j]);
+      
+      //south
+      RHS_C1_star[mesh.n-1][j] = -(C1_star[iendc][jstartc+j] - C1_n[iendc][jstartc+j])/dt
+                                 - (1/mesh.dz)*mesh.dzdx_cX[mpi.pi*mesh.n+mesh.n-1]*(f1star_flux_sX[mesh.n_s-1][j]-f1star_flux_sX[mesh.n_s-2][j])
+                                 - (1/mesh.dn)*mesh.dndy_cY[mpi.pj*mesh.m+j]*(g1star_flux_sY[mesh.n-1][j+1]-g1star_flux_sY[mesh.n-1][j]);
+      RHS_C2_star[mesh.n-1][j] = -(C2_star[iendc][jstartc+j] - C2_n[iendc][jstartc+j])/dt
+                                - (1/mesh.dz)*mesh.dzdx_cX[mpi.pi*mesh.n+mesh.n-1]*(f2star_flux_sX[mesh.n_s-1][j]-f2star_flux_sX[mesh.n_s-2][j])
+                                - (1/mesh.dn)*mesh.dndy_cY[mpi.pj*mesh.m+j]*(g2star_flux_sY[mesh.n-1][j+1]-g2star_flux_sY[mesh.n-1][j]);
+    }
+    for (int i=1; i<mesh.n-1; i++) {
+      //left
+      RHS_C1_star[i][0] = -(C1_star[istartc+i][jstartc] - C1_n[istartc+i][jstartc])/dt
+                          - (1/mesh.dz)*mesh.dzdx_cX[mpi.pi*mesh.n+i]*(f1star_flux_sX[i+1][0]-f1star_flux_sX[i][0])
+                          - (1/mesh.dn)*mesh.dndy_cY[mpi.pj*mesh.m]*(g1star_flux_sY[i][1]-g1star_flux_sY[i][0]);
+      RHS_C2_star[i][0] = -(C2_star[istartc+i][jstartc] - C2_n[istartc+i][jstartc])/dt
+                          - (1/mesh.dz)*mesh.dzdx_cX[mpi.pi*mesh.n+i]*(f2star_flux_sX[i+1][0]-f2star_flux_sX[i][0])
+                          - (1/mesh.dn)*mesh.dndy_cY[mpi.pj*mesh.m]*(g2star_flux_sY[i][1]-g2star_flux_sY[i][0]);
+      //right
+      RHS_C1_star[i][mesh.m-1] = -(C1_star[istartc+i][jendc] - C1_n[istartc+i][jendc])/dt
+                                 - (1/mesh.dz)*mesh.dzdx_cX[mpi.pi*mesh.n+i]*(f1star_flux_sX[i+1][mesh.m-1]-f1star_flux_sX[i][mesh.m-1])
+                                 - (1/mesh.dn)*mesh.dndy_cY[mpi.pj*mesh.m+mesh.m-1]*(g1star_flux_sY[i][mesh.m_s-1]-g1star_flux_sY[i][mesh.m_s-2]);
+      RHS_C2_star[i][mesh.m-1] = -(C2_star[istartc+i][jendc] - C2_n[istartc+i][jendc])/dt
+                                 - (1/mesh.dz)*mesh.dzdx_cX[mpi.pi*mesh.n+i]*(f2star_flux_sX[i+1][mesh.m-1]-f2star_flux_sX[i][mesh.m-1])
+                                 - (1/mesh.dn)*mesh.dndy_cY[mpi.pj*mesh.m+mesh.m-1]*(g2star_flux_sY[i][mesh.m_s-1]-g2star_flux_sY[i][mesh.m_s-2]);
+                                  
+    }
+  }
+  else {
+    for (int j=0; j<mesh.m; j++) {
+      //north
+      RHS_C1_star[0][j] =  -(3*C1_star[istartc][jstartc+j]-4*C1_n[istartc][jstartc+j]+C1_nMinus1[istartc][jstartc+j])/(2*dt)
+                           - (1/mesh.dz)*mesh.dzdx_cX[mpi.pi*mesh.n]*(f1star_flux_sX[1][j]-f1star_flux_sX[0][j])
+                           - (1/mesh.dn)*mesh.dndy_cY[mpi.pj*mesh.m+j]*(g1star_flux_sY[0][j+1]-g1star_flux_sY[0][j]);
+      RHS_C2_star[0][j] = -(3*C2_star[istartc][jstartc+j]-4*C2_n[istartc][jstartc+j]+C2_nMinus1[istartc][jstartc+j])/(2*dt)
+                          - (1/mesh.dz)*mesh.dzdx_cX[mpi.pi*mesh.n]*(f2star_flux_sX[1][j]-f2star_flux_sX[0][j])
+                          - (1/mesh.dn)*mesh.dndy_cY[mpi.pj*mesh.m+j]*(g2star_flux_sY[0][j+1]-g2star_flux_sY[0][j]);
 
+      //south
+      RHS_C1_star[mesh.n-1][j] = -(3*C1_star[iendc][jstartc+j]-4*C1_n[iendc][jstartc+j]+C1_nMinus1[iendc][jstartc+j])/(2*dt)
+                                 - (1/mesh.dz)*mesh.dzdx_cX[mpi.pi*mesh.n+mesh.n-1]*(f1star_flux_sX[mesh.n_s-1][j]-f1star_flux_sX[mesh.n_s-2][j])
+                                 - (1/mesh.dn)*mesh.dndy_cY[mpi.pj*mesh.m+j]*(g1star_flux_sY[mesh.n-1][j+1]-g1star_flux_sY[mesh.n-1][j]);
+      RHS_C2_star[mesh.n-1][j] = -(3*C2_star[iendc][jstartc+j]-4*C2_n[iendc][jstartc+j]+C2_nMinus1[iendc][jstartc+j])/(2*dt) 
+                                - (1/mesh.dz)*mesh.dzdx_cX[mpi.pi*mesh.n+mesh.n-1]*(f2star_flux_sX[mesh.n_s-1][j]-f2star_flux_sX[mesh.n_s-2][j])
+                                - (1/mesh.dn)*mesh.dndy_cY[mpi.pj*mesh.m+j]*(g2star_flux_sY[mesh.n-1][j+1]-g2star_flux_sY[mesh.n-1][j]);
+    }
+    for (int i=1; i<mesh.n-1; i++) {
+      //left
+      RHS_C1_star[i][0] =  -(3*C1_star[istartc+i][jstartc]-4*C1_n[istartc+i][jstartc]+C1_nMinus1[istartc+i][jstartc])/(2*dt)
+                          - (1/mesh.dz)*mesh.dzdx_cX[mpi.pi*mesh.n+i]*(f1star_flux_sX[i+1][0]-f1star_flux_sX[i][0])
+                          - (1/mesh.dn)*mesh.dndy_cY[mpi.pj*mesh.m]*(g1star_flux_sY[i][1]-g1star_flux_sY[i][0]);
+      RHS_C2_star[i][0] = -(3*C2_star[istartc+i][jstartc]-4*C2_n[istartc+i][jstartc]+C2_nMinus1[istartc+i][jstartc])/(2*dt) 
+                          - (1/mesh.dz)*mesh.dzdx_cX[mpi.pi*mesh.n+i]*(f2star_flux_sX[i+1][0]-f2star_flux_sX[i][0])
+                          - (1/mesh.dn)*mesh.dndy_cY[mpi.pj*mesh.m]*(g2star_flux_sY[i][1]-g2star_flux_sY[i][0]);
+      //right
+      RHS_C1_star[i][mesh.m-1] = -(3*C1_star[istartc+i][jendc]-4*C1_n[istartc+i][jendc]+C1_nMinus1[istartc+i][jendc])/(2*dt) 
+                                 - (1/mesh.dz)*mesh.dzdx_cX[mpi.pi*mesh.n+i]*(f1star_flux_sX[i+1][mesh.m-1]-f1star_flux_sX[i][mesh.m-1])
+                                 - (1/mesh.dn)*mesh.dndy_cY[mpi.pj*mesh.m+mesh.m-1]*(g1star_flux_sY[i][mesh.m_s-1]-g1star_flux_sY[i][mesh.m_s-2]);
+      RHS_C2_star[i][mesh.m-1] = -(3*C2_star[istartc+i][jendc]-4*C2_n[istartc+i][jendc]+C2_nMinus1[istartc+i][jendc])/(2*dt)    
+                                 - (1/mesh.dz)*mesh.dzdx_cX[mpi.pi*mesh.n+i]*(f2star_flux_sX[i+1][mesh.m-1]-f2star_flux_sX[i][mesh.m-1])
+                                 - (1/mesh.dn)*mesh.dndy_cY[mpi.pj*mesh.m+mesh.m-1]*(g2star_flux_sY[i][mesh.m_s-1]-g2star_flux_sY[i][mesh.m_s-2]);
+
+    }
+  }
+
+  /*if (mpi.myid ==0) {
+    for (int j=0; j<mesh.m; j++) {
+      for (int i=0; i<mesh.n; i++) {
+        cout << setprecision(10) << setw(19)  << RHS_C2_star[i][j] << " ";
+      }
+      cout << endl;
+    }
+  }*/
 }
 
 void IonTransportEqns2D::updateInteriorRHS(int time_i, double dt) {
