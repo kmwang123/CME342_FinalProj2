@@ -1,22 +1,16 @@
-
+#include <iomanip>
+#include <iostream>
 
 #include "hypreSolver.hpp"
 #include "Array.hpp"
 #include "mpiWrapper.hpp"
 #include "HYPRE_struct_ls.h"
 
-void GaussLawSolveStruct(Mesh mesh, MPI_Wrapper mpi, int ndim, array2<double> C1_n, array2<double> C2_n, array2<double> phi, double epsilon, double Ey_SBC_sX, double Ey_NBC_sX, double Phi_LHS_BC_sX, double Phi_RHS_BC_sX, int solver_id_gauss) {
+HypreSolver::HypreSolver(void) {
+  
+}
 
-  /*Setup HYPRE*/
-  HYPRE_StructGrid     grid;
-  HYPRE_StructStencil  stencil;
-  HYPRE_StructMatrix   A;
-  HYPRE_StructVector   b;
-  HYPRE_StructVector   x;
-  HYPRE_StructSolver   solver;
-  HYPRE_StructSolver   precond;
-  int num_iterations;
-  double final_res_norm;
+void HypreSolver::GaussLawSolveStruct_Matrix(Mesh mesh, MPI_Wrapper mpi, int ndim) {
 
   //Grid Setup
   HYPRE_StructGridCreate(mpi.comm, ndim, &grid);
@@ -24,8 +18,8 @@ void GaussLawSolveStruct(Mesh mesh, MPI_Wrapper mpi, int ndim, array2<double> C1
   //hardcode everything in
   int pi = mpi.myid % mpi.p1;
   int pj = mpi.myid / mpi.p1;
-  int ilower[2];
-  int iupper[2];
+  //int ilower[2];
+  //int iupper[2];
   ilower[0] = pi*mesh.n;
   ilower[1] = pj*mesh.m;
   iupper[0] = ilower[0] + mesh.n-1;
@@ -48,14 +42,13 @@ void GaussLawSolveStruct(Mesh mesh, MPI_Wrapper mpi, int ndim, array2<double> C1
   HYPRE_StructMatrixInitialize(A);
   //Set up matrix coefficients for stencil entries over all gridpoints
   int nvalues = mesh.n*mesh.m*nentries;
-  double *values = new double[nvalues];
+  values = new double[nvalues];
   int stencil_indices[nentries];
   //label stencil indices- these correspond to offsets defined above
   for (int j=0; j<nentries; j++)
     stencil_indices[j] = j;
   //set interior values
   int elnumX, elnumY;
-  //THIS SHOULD BE CHANGED!!!!
   for (int i = 0; i < nvalues; i += nentries) {
     elnumX = ((i/nentries)%mesh.n) + pi*mesh.n;
     elnumY = ((i/nentries)/mesh.n) + pj*mesh.m;
@@ -72,15 +65,15 @@ void GaussLawSolveStruct(Mesh mesh, MPI_Wrapper mpi, int ndim, array2<double> C1
   HYPRE_StructMatrixSetBoxValues(A, ilower, iupper, nentries,
                                  stencil_indices, values);
   //Set Boundary Conditions
-  int bc_ilower[2];
-  int bc_iupper[2];
+  //int bc_ilower[2];
+  //int bc_iupper[2];
   nentries = 1;
   int nxvalues = nentries*mesh.n;
   int nyvalues = nentries*mesh.m;
-  double *xvalues = new double[nxvalues]();
-  double *yvalues = new double[nyvalues]();
-  double *xclearval = new double[nxvalues]();
-  double *yclearval = new double[nyvalues]();
+  xvalues = new double[nxvalues]();
+  yvalues = new double[nyvalues]();
+  xclearval = new double[nxvalues]();
+  yclearval = new double[nyvalues]();
   //set bc 
   for (int j = 0; j < nyvalues; j++)
     yclearval[j] = 0.0;
@@ -167,17 +160,33 @@ void GaussLawSolveStruct(Mesh mesh, MPI_Wrapper mpi, int ndim, array2<double> C1
   //Finalized Matrix Assembly
   HYPRE_StructMatrixAssemble(A);
   //print matrix
-  int ret = HYPRE_StructMatrixPrint("A.dat",A,0);
+  //int ret = HYPRE_StructMatrixPrint("A.dat",A,0);
+}
+void HypreSolver::GaussLawSolveStruct_RHS(Mesh mesh, MPI_Wrapper mpi, 
+                                         int ndim, array2<double> C1_n, array2<double> 
+                                     C2_n, double epsilon, double Ey_SBC_sX, double Ey_NBC_sX, 
+                                         double Phi_LHS_BC_sX, double Phi_RHS_BC_sX) {
+  int pi = mpi.myid % mpi.p1;
+  int pj = mpi.myid / mpi.p1;
+  //int ilower[2];
+  //int iupper[2];
+  //ilower[0] = pi*mesh.n;
+  //ilower[1] = pj*mesh.m;
+  //iupper[0] = ilower[0] + mesh.n-1;
+  //iupper[1] = ilower[1] + mesh.m-1;
 
   //Set up Sruct vectors b and x
-  nvalues = mesh.m*mesh.n;
-  double *values_vec = new double[nvalues];
+  int nvalues = mesh.m*mesh.n;
+  int nentries = 1;
+  int nxvalues = nentries*mesh.n;
+  int nyvalues = nentries*mesh.m;
+  //int bc_ilower[2];
+  //int bc_iupper[2];
+  values_vec = new double[nvalues];
   // Create an empty vector object 
   HYPRE_StructVectorCreate(mpi.comm, grid, &b);
-  HYPRE_StructVectorCreate(mpi.comm, grid, &x);
   // Indicate that the vector coefficients are ready to be set 
   HYPRE_StructVectorInitialize(b);
-  HYPRE_StructVectorInitialize(x);
   //Set vector values
   for (int j=0; j<mesh.m; j++) {
     for (int i=0; i<mesh.n; i++) {
@@ -236,19 +245,75 @@ void GaussLawSolveStruct(Mesh mesh, MPI_Wrapper mpi, int ndim, array2<double> C1
     HYPRE_StructVectorAddToBoxValues(b, bc_ilower, bc_iupper, yvalues);
   }
   //Debug
-  int ret2 = HYPRE_StructVectorPrint("bvec", b, 0);
+  //int ret2 = HYPRE_StructVectorPrint("bvec", b, 0);
+
+  //delete [] xvalues;
+  //delete [] yvalues;
+  //delete [] xclearval;
+  //delete [] yclearval;
+  delete [] values_vec;
+  //Finalize vector assembly
+  HYPRE_StructVectorAssemble(b);
+
+
+}
+void HypreSolver::updateRHSPhi(Mesh mesh, 
+                               MPI_Wrapper mpi,
+                               int ndim, 
+                               array2<double> C1_star, 
+                               array2<double> C2_star,
+                               array2<double> phi,
+                               array2<double> RHS_phi_star, 
+                               double epsilon, 
+                               double Ey_SBC_sX, double Ey_NBC_sX,
+                               double Phi_LHS_BC_sX, double Phi_RHS_BC_sX) {
+
+  GaussLawSolveStruct_RHS(mesh,mpi,ndim,
+                          C1_star,C2_star,epsilon, 
+                          Ey_SBC_sX,Ey_NBC_sX,
+                          Phi_LHS_BC_sX,Phi_RHS_BC_sX);
+  
+  //set up big rhs phi
+  int nvalues = mesh.m*mesh.n;
+  double *values_vec = new double[nvalues];
+  HYPRE_StructVectorCreate(mpi.comm, grid, &bigphi);
+  HYPRE_StructVectorInitialize(bigphi);
+
+  //set vector values
+  for (int j=0; j<mesh.m; j++) {
+    for (int i=0; i<mesh.n; i++) {
+      values_vec[j*mesh.n+i] = phi[i+mpi.hsize][j+mpi.hsize]; 
+    }
+  }
+  HYPRE_StructVectorSetBoxValues(bigphi, ilower, iupper, values_vec);
+
+  HYPRE_StructMatrixMatvec(-1,A,bigphi,1,b);
+
+  HYPRE_StructVectorGetBoxValues(b,ilower,iupper,values);
+  for (int j=0; j<mesh.m; j++) {
+    for (int i=0; i<mesh.n; i++) {
+      RHS_phi_star[i][j] = values[j*mesh.n+i];
+      if (mpi.myid ==0)
+        cout << setprecision(15) << setw(19) << RHS_phi_star[i][j] << " ";
+    }
+    cout << endl;
+  } 
+
+  delete [] values_vec;
+}
+
+void HypreSolver::GaussLawSolveStruct_Solve(Mesh mesh, MPI_Wrapper mpi, int ndim, array2<double> phi, int solver_id_gauss) {
+  HYPRE_StructVectorCreate(mpi.comm, grid, &x);
+  HYPRE_StructVectorInitialize(x);
+
+  //Set up Sruct vectors b and x
+  int nvalues = mesh.m*mesh.n;
+  double *values_vec = new double[nvalues];
+
   //Construct x-vector
   for (int i = 0; i < nvalues; i ++)
     values_vec[i] = 0.0;
   HYPRE_StructVectorSetBoxValues(x, ilower, iupper, values_vec);
-
-  delete [] xvalues;
-  delete [] yvalues;
-  delete [] xclearval;
-  delete [] yclearval;
-  delete [] values_vec;
-  //Finalize vector assembly
-  HYPRE_StructVectorAssemble(b);
   HYPRE_StructVectorAssemble(x);
 
   if (solver_id_gauss == 0) {
@@ -311,34 +376,34 @@ void GaussLawSolveStruct(Mesh mesh, MPI_Wrapper mpi, int ndim, array2<double> C1
   if (solver_id_gauss == 2) {
     //Set default parameters
     int n_pre = 1;
-     int n_post = 1;
-     int skip = 0;
-     int rap = 0;
-     int relax = 1;
+    int n_post = 1;
+    int skip = 0;
+    int rap = 0;
+    int relax = 1;
 
-     // Options and setup 
-     HYPRE_StructPFMGCreate(MPI_COMM_WORLD, &solver);
-      HYPRE_StructPFMGSetMaxIter(solver, 50);
-      HYPRE_StructPFMGSetTol(solver, 1.0e-06);
-      HYPRE_StructPFMGSetRelChange(solver, 0);
-      HYPRE_StructPFMGSetRAPType(solver, rap);
-      HYPRE_StructPFMGSetRelaxType(solver, relax);
-      HYPRE_StructPFMGSetNumPreRelax(solver, n_pre);
-      HYPRE_StructPFMGSetNumPostRelax(solver, n_post);
-      HYPRE_StructPFMGSetSkipRelax(solver, skip);
-      HYPRE_StructPFMGSetPrintLevel(solver, 1);
-      HYPRE_StructPFMGSetLogging(solver, 1);
-      HYPRE_StructPFMGSetup(solver, A, b, x);
-      // Solve 
-      HYPRE_StructPFMGSolve(solver, A, b, x);
-      // Get info and release memory 
-      HYPRE_StructPFMGGetNumIterations(solver, &num_iterations);
-      HYPRE_StructPFMGGetFinalRelativeResidualNorm(solver, &final_res_norm);
-      HYPRE_StructPFMGDestroy(solver);
+    // Options and setup 
+    HYPRE_StructPFMGCreate(MPI_COMM_WORLD, &solver);
+    HYPRE_StructPFMGSetMaxIter(solver, 50);
+    HYPRE_StructPFMGSetTol(solver, 1.0e-06);
+    HYPRE_StructPFMGSetRelChange(solver, 0);
+    HYPRE_StructPFMGSetRAPType(solver, rap);
+    HYPRE_StructPFMGSetRelaxType(solver, relax);
+    HYPRE_StructPFMGSetNumPreRelax(solver, n_pre);
+    HYPRE_StructPFMGSetNumPostRelax(solver, n_post);
+    HYPRE_StructPFMGSetSkipRelax(solver, skip);
+    HYPRE_StructPFMGSetPrintLevel(solver, 1);
+    HYPRE_StructPFMGSetLogging(solver, 1);
+    HYPRE_StructPFMGSetup(solver, A, b, x);
+    // Solve 
+    HYPRE_StructPFMGSolve(solver, A, b, x);
+    // Get info and release memory 
+    HYPRE_StructPFMGGetNumIterations(solver, &num_iterations);
+    HYPRE_StructPFMGGetFinalRelativeResidualNorm(solver, &final_res_norm);
+    HYPRE_StructPFMGDestroy(solver);
 
   }
   //Debug
-  int ret3 = HYPRE_StructVectorPrint("xvec", x, 0);
+  //int ret3 = HYPRE_StructVectorPrint("xvec", x, 0);
   //reshape and store in phi
   HYPRE_StructVectorGetBoxValues(x,ilower,iupper,values);
   for (int j=0; j<mesh.m; j++) {
@@ -354,14 +419,22 @@ void GaussLawSolveStruct(Mesh mesh, MPI_Wrapper mpi, int ndim, array2<double> C1
     cout << endl;
   }
   }*/
+  delete [] values_vec; 
+}
 
-
+void HypreSolver::CleanUp(void) {
+ 
   // Free memory 
   delete [] values;
+  delete [] xvalues;
+  delete [] yvalues;
+  delete [] xclearval;
+  delete [] yclearval;
+  delete [] values_vec;
   HYPRE_StructGridDestroy(grid);
   HYPRE_StructStencilDestroy(stencil);
   HYPRE_StructMatrixDestroy(A);
   HYPRE_StructVectorDestroy(b);
-  HYPRE_StructVectorDestroy(x); 
-
+  HYPRE_StructVectorDestroy(x);
+  HYPRE_StructVectorDestroy(bigphi);
 }

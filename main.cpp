@@ -107,8 +107,10 @@ int main(int argc,char** argv)  {
   //setup bc arrays
   ionSys.createBCarrays(C1_bcs,C2_bcs,Ey_bcs);
 
-  GaussLawSolveStruct(mesh,mpi,ndim,ionSys.C1_n, ionSys.C2_n,ionSys.phi,epsilon, Ey_SBC_sX, Ey_NBC_sX, Phi_LHS_BC_sX,Phi_RHS_BC_sX,1);
-
+  HypreSolver ion_laplacian;
+  ion_laplacian.GaussLawSolveStruct_Matrix(mesh,mpi,ndim);
+  ion_laplacian.GaussLawSolveStruct_RHS(mesh,mpi,ndim,ionSys.C1_n, ionSys.C2_n,epsilon, Ey_SBC_sX, Ey_NBC_sX, Phi_LHS_BC_sX,Phi_RHS_BC_sX);
+  ion_laplacian.GaussLawSolveStruct_Solve(mesh,mpi,ndim,ionSys.phi,1);
   // set first star (guess) value with the initial concentration
   ionSys.setCstarValuesfrmCn();
 
@@ -123,14 +125,14 @@ int main(int argc,char** argv)  {
       ionSys.sendCenters_updateFluxes(nsSys.u_star,nsSys.v_star);
       //send halo fluxes, update interior rhs, update boundary rhs
       ionSys.sendFluxes_updateRHS(time_i,dt);
-      //ionSys.updateBoundaryFluxes(nsSys.u_star,nsSys.v_star);
+      ion_laplacian.updateRHSPhi(mesh,mpi,ndim,ionSys.C1_star, ionSys.C2_star, ionSys.phi,ionSys.RHS_phi_star,epsilon, Ey_SBC_sX, Ey_NBC_sX, Phi_LHS_BC_sX,Phi_RHS_BC_sX);
     }
     //////////////////// End Iteration ///////////////////////
     ionSys.updateConvergedValues();
     //nsSys.updateConvergedValues();
   }
 
-
+  //ion_laplacian.CleanUp();
   MPI_Finalize();
   return 0;
 }

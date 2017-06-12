@@ -51,6 +51,7 @@ void IonTransportEqns2D::setUp(bool restart, bool perturb) {
 
   RHS_C1_star.Allocate(mesh.n,mesh.m);
   RHS_C2_star.Allocate(mesh.n,mesh.m);
+  RHS_phi_star.Allocate(mesh.n,mesh.m);
 
   this->restart = restart;
 
@@ -644,8 +645,8 @@ void IonTransportEqns2D::updateInteriorFluxes(array2<double> u_star, array2<doub
     }}
     cout << endl;
   }*/
- /*
-  for (int j=0; j<mesh.m; j++) { 
+ 
+  /*for (int j=0; j<mesh.m; j++) { 
     for (int i=0; i<mesh.n_s; i++) {
      if (mpi.myid == 3) {
         cout << setprecision(15) << setw(19) << Ex_star_sX[i][j] << " ";
@@ -655,6 +656,8 @@ void IonTransportEqns2D::updateInteriorFluxes(array2<double> u_star, array2<doub
   }*/
 
 }
+
+
 
 double IonTransportEqns2D::frand(double fMin, double fMax) {
   double f = (double)rand() / RAND_MAX;

@@ -45,6 +45,7 @@ class IonTransportEqns2D {
 
     array2<double> RHS_C1_star;
     array2<double> RHS_C2_star;
+    array2<double> RHS_phi_star;
  
     int istartc, iendc, jstartc, jendc;
  
