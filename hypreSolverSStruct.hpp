@@ -32,10 +32,12 @@ class HypreSolverSStruct {
    int solver_id = 0;
 
    void IonSystemSStructInit_Matrix(int ndim);
+   void IonSystemSStruct_C1(array2<double> phi);
    void IonSystemSStruct_Matrix(double epsilon,
                                 array2<double> C1,
                                 array2<double> C2,
                                 array2<double> phi);
+   void IonSystemSStruct_Gauss(double epsilon);
    void IonSystemSStruct_RHS(array2<double> RHS_C1_star,
                              array2<double> RHS_C2_star,
                              array2<double> RHS_phi_star);

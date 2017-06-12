@@ -92,8 +92,6 @@ void HypreSolverSStruct::IonSystemSStruct_Matrix(double epsilon,
                                                  array2<double> C1,
                                                  array2<double> C2,
                                                  array2<double> phi) {
-  int part = 0;
-  int var;
 
   //Create an empty matrix object
   HYPRE_SStructMatrixCreate(mpi.comm, graph, &A);
@@ -105,6 +103,21 @@ void HypreSolverSStruct::IonSystemSStruct_Matrix(double epsilon,
   HYPRE_SStructMatrixSetObjectType(A, object_type);
   HYPRE_SStructMatrixInitialize(A);
 
+  IonSystemSStruct_Gauss(epsilon);
+  IonSystemSStruct_C1(phi);
+} 
+void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi) {
+  int part = 0;
+  int var;
+  //first set 
+}
+
+
+void HypreSolverSStruct::IonSystemSStruct_Gauss(double epsilon) {
+
+
+  int part = 0;
+  int var;
   //first set phi-stencil entries for Gauss's law
   int c1_phi_indices[1] = {5};
   int phi_indices[5] = {0, 1, 2, 3 ,4};
@@ -153,9 +166,6 @@ void HypreSolverSStruct::IonSystemSStruct_Matrix(double epsilon,
                                   phi_indices, phi_values);
   delete [] phi_values;
   delete [] phi_c_values;
-
-
-
 
 
   //incorporate boundary conditions
@@ -265,7 +275,39 @@ void HypreSolverSStruct::IonSystemSStruct_Matrix(double epsilon,
 void HypreSolverSStruct::IonSystemSStruct_RHS(array2<double> RHS_C1_star,
                                               array2<double> RHS_C2_star,
                                               array2<double> RHS_phi_star) {
+  int nvalues = mesh.n*mesh.m;
+  double *values = new double[nvalues];
+  double *values1 = new double[nvalues];
+  double *values2 = new double[nvalues];
+  int part = 0;
+  int var;
+  
+  //create an empty vector object
+  HYPRE_SStructVectorCreate(MPI_COMM_WORLD, grid, &b);
+  //set object type
+  HYPRE_SStructVectorSetObjectType(b, object_type);
+  HYPRE_SStructVectorInitialize(b);
+  //set values for b
+  for (int j=0; j<mesh.m; j++) {
+    for (int i=0; i<mesh.n; i++) {
+      values[j*mesh.n+i] = RHS_C1_star[i][j];
+      values1[j*mesh.n+i] = RHS_phi_star[i][j];
+      values2[j*mesh.n+i] = RHS_C2_star[i][j];
+    }
+  }
+ 
+  var = 0;
+  HYPRE_SStructVectorSetBoxValues(b, part, ilower, iupper, var, values);
+  var = 1;
+  HYPRE_SStructVectorSetBoxValues(b, part, ilower, iupper, var, values1);
+  var = 2;
+  HYPRE_SStructVectorSetBoxValues(b, part, ilower, iupper, var, values2);
 
+  HYPRE_SStructVectorAssemble(b);
+ 
+  delete [] values;
+  delete [] values1;
+  delete [] values2;
 }
 
 void HypreSolverSStruct::IonSystemSStruct_Solve(array2<double> C1,
@@ -276,4 +318,11 @@ void HypreSolverSStruct::IonSystemSStruct_Solve(array2<double> C1,
 
 HypreSolverSStruct::~HypreSolverSStruct() {
   //free memory to prevent leakage
+  HYPRE_SStructGridDestroy(grid);
+  HYPRE_SStructStencilDestroy(stencil_phi);
+  HYPRE_SStructStencilDestroy(stencil_c1);
+  HYPRE_SStructStencilDestroy(stencil_c2);
+  HYPRE_SStructGraphDestroy(graph);
+   HYPRE_SStructMatrixDestroy(A);
+   HYPRE_SStructVectorDestroy(b);
 }
