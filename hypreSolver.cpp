@@ -159,6 +159,8 @@ void HypreSolver::GaussLawSolveStruct_Matrix(Mesh mesh, MPI_Wrapper mpi, int ndi
   }
   //Finalized Matrix Assembly
   HYPRE_StructMatrixAssemble(A);
+
+
   //print matrix
   //int ret = HYPRE_StructMatrixPrint("A.dat",A,0);
 }
@@ -290,14 +292,14 @@ void HypreSolver::updateRHSPhi(Mesh mesh,
   HYPRE_StructMatrixMatvec(-1,A,bigphi,1,b);
 
   HYPRE_StructVectorGetBoxValues(b,ilower,iupper,values);
-  for (int j=0; j<mesh.m; j++) {
+  /*for (int j=0; j<mesh.m; j++) {
     for (int i=0; i<mesh.n; i++) {
       RHS_phi_star[i][j] = values[j*mesh.n+i];
       if (mpi.myid ==0)
         cout << setprecision(15) << setw(19) << RHS_phi_star[i][j] << " ";
     }
     cout << endl;
-  } 
+  }*/ 
 
   delete [] values_vec;
 }

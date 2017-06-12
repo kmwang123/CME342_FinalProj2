@@ -9,7 +9,7 @@
 #include "NSEqns.hpp"
 #include "mpiWrapper.hpp"
 #include "hypreSolver.hpp"
-
+#include "hypreSolverSStruct.hpp"
 using namespace std;
 
 Mesh meshSetup(double Lx,double dz,int N,double beta,double dx_max,double dx_min, double Ly, double dn, int M, double dy_min, int p1, int p2);
@@ -111,6 +111,8 @@ int main(int argc,char** argv)  {
   ion_laplacian.GaussLawSolveStruct_Matrix(mesh,mpi,ndim);
   ion_laplacian.GaussLawSolveStruct_RHS(mesh,mpi,ndim,ionSys.C1_n, ionSys.C2_n,epsilon, Ey_SBC_sX, Ey_NBC_sX, Phi_LHS_BC_sX,Phi_RHS_BC_sX);
   ion_laplacian.GaussLawSolveStruct_Solve(mesh,mpi,ndim,ionSys.phi,1);
+  HypreSolverSStruct ion_bigM(mesh,mpi);
+  ion_bigM.IonSystemSStructInit_Matrix(ndim);
   // set first star (guess) value with the initial concentration
   ionSys.setCstarValuesfrmCn();
 
@@ -126,6 +128,7 @@ int main(int argc,char** argv)  {
       //send halo fluxes, update interior rhs, update boundary rhs
       ionSys.sendFluxes_updateRHS(time_i,dt);
       ion_laplacian.updateRHSPhi(mesh,mpi,ndim,ionSys.C1_star, ionSys.C2_star, ionSys.phi,ionSys.RHS_phi_star,epsilon, Ey_SBC_sX, Ey_NBC_sX, Phi_LHS_BC_sX,Phi_RHS_BC_sX);
+      ion_bigM.IonSystemSStruct_Matrix(epsilon,ionSys.C1_star, ionSys.C2_star, ionSys.phi);
     }
     //////////////////// End Iteration ///////////////////////
     ionSys.updateConvergedValues();
