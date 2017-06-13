@@ -260,9 +260,14 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
     bc_iupper[1] = bc_ilower[1];
 
     stencil_indices_bc[0] = 3; //3 means south values
+    var = 0;
     HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper, 
                                     var, nentries,
                                     stencil_indices_bc,xclearval);  
+    var = 1;
+    HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
+                                    var, nentries,
+                                    stencil_indices_bc,xclearval);
     //need to change center value
     stencil_indices_bc[0] = 0; //0 means center values
     for (int i=0; i<nxvalues; i++) {
@@ -315,6 +320,11 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
     bc_iupper[1] = bc_ilower[1];
 
     stencil_indices_bc[0] = 4; //4 means north values
+    var = 0;
+    HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
+                                    var, nentries,
+                                    stencil_indices_bc,xclearval);
+    var = 1; 
     HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xclearval);
@@ -348,8 +358,8 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
       //em
       xphi_values[i] = (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[mesh.M-1]*mesh.dndy_sY[mesh.M-1]*phiM_cX_sY[i][mesh.m-2];
       xphic1_values[i] = -(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[mesh.M-1]*mesh.dndy_sY[mesh.M-1]*C1star_cX_sY[i][mesh.m-2];
-      if (mpi.myid == 4)
-        cout << xphic1_values[i] << endl;
+      //if (mpi.myid == 4)
+        //cout << xphic1_values[i] << endl;
     }
     var = 0;
     HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
@@ -372,6 +382,11 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
     bc_iupper[1] = bc_ilower[1] + mesh.m-1;
 
     stencil_indices_bc[0] = 1; //1 means west values
+    var = 0;
+    HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
+                                    var, nentries,
+                                    stencil_indices_bc,yclearval);
+    var = 1;
     HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,yclearval);
@@ -406,7 +421,11 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
     bc_iupper[1] = bc_ilower[1] + mesh.m-1;
 
     stencil_indices_bc[0] = 2;
-
+    var = 0;
+    HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
+                                    var, nentries,
+                                    stencil_indices_bc,yclearval);
+    var = 1;
     HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,yclearval);
@@ -538,6 +557,10 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
   int nyvalues = nentries*mesh.m;
   double *xvalues = new double[nxvalues]();
   double *yvalues = new double[nyvalues]();
+  double *xphi_values = new double[nxvalues]();
+  double *yphi_values = new double[nyvalues]();
+  double *xphic2_values = new double[nxvalues]();
+  double *yphic2_values = new double[nyvalues]();
   double *xclearval = new double[nxvalues]();
   double *yclearval = new double[nyvalues]();
   int stencil_indices_bc[1];
@@ -555,6 +578,7 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
     bc_iupper[1] = bc_ilower[1];
 
     stencil_indices_bc[0] = 3; //3 means south values
+    var = 2;
     HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper, 
                                     var, nentries,
                                     stencil_indices_bc,xclearval);  
@@ -569,6 +593,7 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
     bc_iupper[1] = bc_ilower[1];
 
     stencil_indices_bc[0] = 4; //4 means north values
+    var = 2;
     HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xclearval); 
@@ -583,6 +608,7 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
     bc_iupper[1] = bc_ilower[1] + mesh.m-1;
 
     stencil_indices_bc[0] = 1; //1 means west values
+    var = 2;
     HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,yclearval);
@@ -597,7 +623,7 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
     bc_iupper[1] = bc_ilower[1] + mesh.m-1;
 
     stencil_indices_bc[0] = 2;
-
+    var = 2;
     HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,yclearval);
@@ -606,6 +632,10 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
 
   delete [] xvalues;
   delete [] yvalues;
+  delete [] xphi_values;
+  delete [] yphi_values;
+  delete [] xphic2_values;
+  delete [] yphic2_values;
   delete [] xclearval;
   delete [] yclearval;
 }
