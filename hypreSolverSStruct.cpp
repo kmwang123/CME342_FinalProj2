@@ -248,9 +248,13 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
   int nentries = 5;
   int nvalues = nentries*mesh.m*mesh.n;
   double *c2_values = new double[nvalues];
+  double *phi_values = new double[nvalues];
+  double *c2_phi_values = new double[nvalues];
   //set interior values 
-  int elnumX, elnumY;
+  int elnumX, elnumY, ix, jy;
   for (int i = 0; i < nvalues; i += nentries) {
+    ix = ((i/nentries)%mesh.n);
+    jy = ((i/nentries)/mesh.n);
     elnumX = ((i/nentries)%mesh.n) + mpi.pi*mesh.n;
     elnumY = ((i/nentries)/mesh.n) + mpi.pj*mesh.m;
     //diffusion
@@ -260,9 +264,58 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
     c2_values[i+2] =-(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*mesh.dzdx_sX[elnumX+1]; //east
     c2_values[i+3] =-(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*mesh.dndy_sY[elnumY];//south
     c2_values[i+4] =-(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*mesh.dndy_sY[elnumY+1];//north
+    //em
+    if (ix != 0 && ix != mesh.n-1) {
+      phi_values[i] = -(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*( phiM_sX_cY[ix-1][jy]*mesh.dzdx_sX[elnumX]
+                                                                  -phiM_sX_cY[ix][jy]*mesh.dzdx_sX[elnumX+1] );
+      c2_phi_values[i] = -(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*(C2star_sX_cY[ix-1][jy]*mesh.dzdx_sX[elnumX]
+                                                                    +C2star_sX_cY[ix][jy]*mesh.dzdx_sX[elnumX+1] );
+  
+    }
+    if (jy != 0 && jy != mesh.m-1) {
+      phi_values[i] = phi_values[i] - (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*(phiM_cX_sY[ix][jy-1]*mesh.dndy_sY[elnumY] 
+                                                                                 -phiM_cX_sY[ix][jy]  *mesh.dndy_sY[elnumY+1] );
+      c2_phi_values[i] = c2_phi_values[i] - (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*(C2star_cX_sY[ix][jy-1]*mesh.dndy_sY[elnumY]
+                                                                                           +C2star_cX_sY[ix][jy]  *mesh.dndy_sY[elnumY+1] );
+    }
+    if (time_i == 1 && !restart) {
+     phi_values[i] = phi_values[i] + 1./dt;
+   }
+   else {
+     phi_values[i] = phi_values[i] + 3./(2*dt);
+   }
+   if (ix != 0) {
+     phi_values[i+1] = -(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*phiM_sX_cY[ix-1][jy]*mesh.dzdx_sX[elnumX];//west
+     c2_phi_values[i+1] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*C2star_sX_cY[ix-1][jy]*mesh.dzdx_sX[elnumX];//west
+   }
+   if (ix != mesh.n-1) {
+      phi_values[i+2] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*phiM_sX_cY[ix][jy]*mesh.dzdx_sX[elnumX+1]; //east 
+      c2_phi_values[i+2] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*C2star_sX_cY[ix][jy]*mesh.dzdx_sX[elnumX+1]; //east 
+   }
+   if (jy != 0 && jy != mesh.m-1) {
+     phi_values[i+3] = -(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*phiM_cX_sY[ix][jy-1]*mesh.dndy_sY[elnumY];//south
+     phi_values[i+4] = (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*phiM_cX_sY[ix][jy]*mesh.dndy_sY[elnumY+1]; //north
+     c2_phi_values[i+3] = (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*C2star_cX_sY[ix][jy-1]*mesh.dndy_sY[elnumY];//south
+     c2_phi_values[i+4] = (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*C2star_cX_sY[ix][jy]*mesh.dndy_sY[elnumY+1]; //north
+   }
   }
+  //set the c2-c2 connections
+  var = 2;
+  HYPRE_SStructMatrixSetBoxValues(A, part, ilower, iupper,
+                                  var, nentries,
+                                  c2_indices, c2_values);
+  //set the c2-c2 connections
+  HYPRE_SStructMatrixAddToBoxValues(A, part, ilower, iupper,
+                                  var, nentries,
+                                  c2_indices, phi_values);
+  //set the c2-phi connections
+  HYPRE_SStructMatrixAddToBoxValues(A, part, ilower, iupper,
+                                  var, nentries,
+                                  c2_phi_indices, c2_phi_values); 
   
   delete [] c2_values;
+  delete [] phi_values;
+  delete [] c2_phi_values;
 }
 
 
