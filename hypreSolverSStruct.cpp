@@ -6,8 +6,9 @@
 using namespace Array;
 using namespace std;
 
-void HypreSolverSStruct::IonSystemSStructInit_Matrix(int ndim) {
+void HypreSolverSStruct::IonSystemSStructInit_Matrix(int ndim, bool restart) {
   this->ndim = ndim;
+  this->restart = restart;
   int nparts = 1;
   int part = 0;
   int stencil_size;
@@ -161,6 +162,7 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
   int nvalues = nentries*mesh.m*mesh.n;
   double *c1_values = new double[nvalues];
   double *phi_values = new double[nvalues];
+  double *c1_phi_values = new double[nvalues];
   //set interior values 
   int elnumX, elnumY,ix,jy;
   for (int i = 0; i < nvalues; i += nentries) {
@@ -179,25 +181,53 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
     if (ix != 0 && ix != mesh.n-1) {
       phi_values[i] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*( phiM_sX_cY[ix-1][jy]*mesh.dzdx_sX[elnumX]
                                                                   -phiM_sX_cY[ix][jy]*mesh.dzdx_sX[elnumX+1] );
+      c1_phi_values[i] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*(C1star_sX_cY[ix-1][jy]*mesh.dzdx_sX[elnumX]
+                                                                    +C1star_sX_cY[ix][jy]*mesh.dzdx_sX[elnumX+1] );
     }
-    //phi_values[i+1] =
-    //phi_values[i+2] =  
-    //phi_values[i+3] =
-    //phi_values[i+4] =
+    if (jy != 0 && jy != mesh.m-1) {
+      phi_values[i] = phi_values[i] + (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*(phiM_cX_sY[ix][jy-1]*mesh.dndy_sY[elnumY] 
+                                                                                     -phiM_cX_sY[ix][jy]  *mesh.dndy_sY[elnumY+1] );
+      c1_phi_values[i] = c1_phi_values[i] + (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*(C1star_cX_sY[ix][jy-1]*mesh.dndy_sY[elnumY]
+                                                                                       +C1star_cX_sY[ix][jy]  *mesh.dndy_sY[elnumY+1] );
+    }
+   if (time_i == 1 && !restart) {
+     phi_values[i] = phi_values[i] + 1./dt;
+   }
+   else {
+     phi_values[i] = phi_values[i] + 3./(2*dt);
+   }
+    if (ix != 0) {
+      phi_values[i+1] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*phiM_sX_cY[ix-1][jy]*mesh.dzdx_sX[elnumX];//west
+      c1_phi_values[i+1] = -(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*C1star_sX_cY[ix-1][jy]*mesh.dzdx_sX[elnumX];//west
+    }
+    if (ix != mesh.n-1) {
+      phi_values[i+2] = -(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*phiM_sX_cY[ix][jy]*mesh.dzdx_sX[elnumX+1]; //east 
+      c1_phi_values[i+2] = -(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*C1star_sX_cY[ix][jy]*mesh.dzdx_sX[elnumX+1]; //east 
+    }
+    if (jy != 0 && jy != mesh.m-1) {
+      phi_values[i+3] = (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*phiM_cX_sY[ix][jy-1]*mesh.dndy_sY[elnumY];//south
+      phi_values[i+4] = -(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*phiM_cX_sY[ix][jy]*mesh.dndy_sY[elnumY+1]; //north
+      c1_phi_values[i+3] = -(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*C1star_cX_sY[ix][jy-1]*mesh.dndy_sY[elnumY];//south
+      c1_phi_values[i+4] = -(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*C1star_cX_sY[ix][jy]*mesh.dndy_sY[elnumY+1]; //north
+    }
   }
 
   //set the c1-c1 connections
-  /*var = 0;
+  var = 0;
   HYPRE_SStructMatrixSetBoxValues(A, part, ilower, iupper,
                                   var, nentries,
                                   c1_indices, c1_values);
-  //set the c1-phi connections
-  var = 1;
-  HYPRE_SStructMatrixSetBoxValues(A, part, ilower, iupper,
+  //set the c1-c1 connections
+  HYPRE_SStructMatrixAddToBoxValues(A, part, ilower, iupper,
                                   var, nentries,
-                                  c1_phi_indices, phi_values);  */ 
+                                  c1_indices, phi_values);  
+  //set the c1-phi connections
+  HYPRE_SStructMatrixAddToBoxValues(A, part, ilower, iupper,
+                                  var, nentries,
+                                  c1_phi_indices, c1_phi_values); 
   delete [] c1_values;
   delete [] phi_values;
+  delete [] c1_phi_values;
 }
 
 void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,

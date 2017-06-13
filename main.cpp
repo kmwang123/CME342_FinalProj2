@@ -112,7 +112,7 @@ int main(int argc,char** argv)  {
   ion_laplacian.GaussLawSolveStruct_RHS(mesh,mpi,ndim,ionSys.C1_n, ionSys.C2_n,epsilon, Ey_SBC_sX, Ey_NBC_sX, Phi_LHS_BC_sX,Phi_RHS_BC_sX);
   ion_laplacian.GaussLawSolveStruct_Solve(mesh,mpi,ndim,ionSys.phi,1);
   HypreSolverSStruct ion_bigM(mesh,mpi);
-  ion_bigM.IonSystemSStructInit_Matrix(ndim);
+  ion_bigM.IonSystemSStructInit_Matrix(ndim,restart);
   // set first star (guess) value with the initial concentration
   ionSys.setCstarValuesfrmCn();
 
