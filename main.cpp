@@ -128,7 +128,7 @@ int main(int argc,char** argv)  {
       //send halo fluxes, update interior rhs, update boundary rhs
       ionSys.sendFluxes_updateRHS(time_i,dt);
       ion_laplacian.updateRHSPhi(mesh,mpi,ndim,ionSys.C1_star, ionSys.C2_star, ionSys.phi,ionSys.RHS_phi_star,epsilon, Ey_SBC_sX, Ey_NBC_sX, Phi_LHS_BC_sX,Phi_RHS_BC_sX);
-      ion_bigM.IonSystemSStruct_Matrix(epsilon,ionSys.C1_star, ionSys.C2_star, ionSys.phi);
+      ion_bigM.IonSystemSStruct_Matrix(epsilon,ionSys.C1_star, ionSys.C2_star, ionSys.phi,time_i,dt);
       ion_bigM.IonSystemSStruct_RHS(ionSys.RHS_C1_star, ionSys.RHS_C2_star, ionSys.RHS_phi_star);
     }
     //////////////////// End Iteration ///////////////////////

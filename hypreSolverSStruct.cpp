@@ -91,7 +91,8 @@ void HypreSolverSStruct::IonSystemSStructInit_Matrix(int ndim) {
 void HypreSolverSStruct::IonSystemSStruct_Matrix(double epsilon,
                                                  array2<double> C1,
                                                  array2<double> C2,
-                                                 array2<double> phi) {
+                                                 array2<double> phi,
+                                                 int time_i, double dt) {
 
   //Create an empty matrix object
   HYPRE_SStructMatrixCreate(mpi.comm, graph, &A);
@@ -103,13 +104,135 @@ void HypreSolverSStruct::IonSystemSStruct_Matrix(double epsilon,
   HYPRE_SStructMatrixSetObjectType(A, object_type);
   HYPRE_SStructMatrixInitialize(A);
 
+  //initialize and compute shared data structures
+  array2<double> phiM_sX_cY(mesh.n-1,mesh.m);
+  array2<double> C1star_sX_cY(mesh.n-1,mesh.m); 
+  array2<double> C2star_sX_cY(mesh.n-1,mesh.m);
+  array2<double> phiM_cX_sY(mesh.n,mesh.m-1);
+  array2<double> C1star_cX_sY(mesh.n,mesh.m-1);
+  array2<double> C2star_cX_sY(mesh.n,mesh.m-1);
+
+  istartc = mpi.hsize;
+  iendc = mesh.n+mpi.hsize-1;
+  jstartc = mpi.hsize;
+  jendc = mesh.m+mpi.hsize-1;
+
+  for (int i=0; i<mesh.n-1; i++) {
+    for (int j=0; j<mesh.m; j++) {
+      phiM_sX_cY[i][j] = 0.5*(phi[istartc+i+1][jstartc+j] - phi[istartc+i][jstartc+j]); 
+      C1star_sX_cY[i][j] = 0.5*(C1[istartc+1+i][jstartc+j] + C1[istartc+i][jstartc+j]);
+      C2star_sX_cY[i][j] = 0.5*(C2[istartc+1+i][jstartc+j] + C2[istartc+i][jstartc+j]);
+      //if (mpi.myid == 0)
+      //  cout << phiM_sX_cY[i][j] << " ";
+    }
+    //cout << endl;
+  }
+
+  for (int i=0; i<mesh.n; i++) {
+    for (int j=0; j<mesh.m-1; j++) {
+      phiM_cX_sY[i][j] = 0.5*(phi[istartc+i][jstartc+j+1] - phi[istartc+i][jstartc+j]);
+      C1star_cX_sY[i][j] = 0.5*(C1[istartc+i][jstartc+j+1] + C1[istartc+i][jstartc+j]);
+      C2star_cX_sY[i][j] = 0.5*(C2[istartc+i][jstartc+j+1] + C2[istartc+i][jstartc+j]);
+      //if (mpi.myid == 0)
+        //cout << phiM_cX_sY[i][j] << " ";
+    }
+    //cout << endl;
+  }
+
   IonSystemSStruct_Gauss(epsilon);
-  IonSystemSStruct_C1(phi);
+  IonSystemSStruct_C1(phi,C1,phiM_sX_cY,C1star_sX_cY,phiM_cX_sY,C1star_cX_sY,time_i,dt);
+  IonSystemSStruct_C2(phi,C2,phiM_sX_cY,C2star_sX_cY,phiM_cX_sY,C2star_cX_sY,time_i,dt);
 } 
-void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi) {
+void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
+                                             array2<double> C1, 
+                                             array2<double> phiM_sX_cY,
+                                             array2<double> C1star_sX_cY,
+                                             array2<double> phiM_cX_sY,
+                                             array2<double> C1star_cX_sY,
+                                             int time_i, double dt) {
+
   int part = 0;
   int var;
-  //first set 
+  //first set c1 stencil entries 
+  int c1_indices[5] = {0, 1, 2, 3 ,4};
+  int c1_phi_indices[5] = {5, 6, 7 , 8, 9};
+  
+  int nentries = 5;
+  int nvalues = nentries*mesh.m*mesh.n;
+  double *c1_values = new double[nvalues];
+  double *phi_values = new double[nvalues];
+  //set interior values 
+  int elnumX, elnumY,ix,jy;
+  for (int i = 0; i < nvalues; i += nentries) {
+    ix = ((i/nentries)%mesh.n);
+    jy = ((i/nentries)/mesh.n);
+    elnumX = ((i/nentries)%mesh.n) + mpi.pi*mesh.n;
+    elnumY = ((i/nentries)/mesh.n) + mpi.pj*mesh.m;
+    //diffusion
+    c1_values[i] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*(mesh.dzdx_sX[elnumX]+mesh.dzdx_sX[elnumX+1]) 
+                  +(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*(mesh.dndy_sY[elnumY]+mesh.dndy_sY[elnumY+1]);
+    c1_values[i+1] =-(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*mesh.dzdx_sX[elnumX]; //west
+    c1_values[i+2] =-(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*mesh.dzdx_sX[elnumX+1]; //east
+    c1_values[i+3] =-(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*mesh.dndy_sY[elnumY];//south
+    c1_values[i+4] =-(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*mesh.dndy_sY[elnumY+1];//north
+    //em
+    if (ix != 0 && ix != mesh.n-1) {
+      phi_values[i] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*( phiM_sX_cY[ix-1][jy]*mesh.dzdx_sX[elnumX]
+                                                                  -phiM_sX_cY[ix][jy]*mesh.dzdx_sX[elnumX+1] );
+    }
+    //phi_values[i+1] =
+    //phi_values[i+2] =  
+    //phi_values[i+3] =
+    //phi_values[i+4] =
+  }
+
+  //set the c1-c1 connections
+  /*var = 0;
+  HYPRE_SStructMatrixSetBoxValues(A, part, ilower, iupper,
+                                  var, nentries,
+                                  c1_indices, c1_values);
+  //set the c1-phi connections
+  var = 1;
+  HYPRE_SStructMatrixSetBoxValues(A, part, ilower, iupper,
+                                  var, nentries,
+                                  c1_phi_indices, phi_values);  */ 
+  delete [] c1_values;
+  delete [] phi_values;
+}
+
+void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
+                                             array2<double> C2,
+                                             array2<double> phiM_sX_cY,
+                                             array2<double> C2star_sX_cY,
+                                             array2<double> phiM_cX_sY,
+                                             array2<double> C2star_cX_sY,
+                                             int time_i, double dt) {
+  int part = 0;
+  int var;
+  //first set c2 stencil entries 
+  int c2_indices[5] = {0, 1, 2, 3 ,4};
+  int c2_phi_indices[5] = {5, 6, 7 , 8, 9};
+
+  //set the c2-c2 connections
+  var = 2;
+  int nentries = 5;
+  int nvalues = nentries*mesh.m*mesh.n;
+  double *c2_values = new double[nvalues];
+  //set interior values 
+  int elnumX, elnumY;
+  for (int i = 0; i < nvalues; i += nentries) {
+    elnumX = ((i/nentries)%mesh.n) + mpi.pi*mesh.n;
+    elnumY = ((i/nentries)/mesh.n) + mpi.pj*mesh.m;
+    //diffusion
+    c2_values[i] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*(mesh.dzdx_sX[elnumX]+mesh.dzdx_sX[elnumX+1])
+                  +(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*(mesh.dndy_sY[elnumY]+mesh.dndy_sY[elnumY+1]);
+    c2_values[i+1] =-(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*mesh.dzdx_sX[elnumX]; //west
+    c2_values[i+2] =-(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*mesh.dzdx_sX[elnumX+1]; //east
+    c2_values[i+3] =-(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*mesh.dndy_sY[elnumY];//south
+    c2_values[i+4] =-(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*mesh.dndy_sY[elnumY+1];//north
+  }
+  
+  delete [] c2_values;
 }
 
 
