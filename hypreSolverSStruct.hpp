@@ -40,6 +40,8 @@ class HypreSolverSStruct {
                             array2<double> C1star_sX_cY,
                             array2<double> phiM_cX_sY,
                             array2<double> C1star_cX_sY,
+                            double C1_LHS_BC_sX, 
+                            double C1_RHS_BC_sX,
                             int time_i, double dt);
    void IonSystemSStruct_C2(array2<double> phi,
                             array2<double> C2,
@@ -47,11 +49,15 @@ class HypreSolverSStruct {
                             array2<double> C2star_sX_cY,
                             array2<double> phiM_cX_sY,
                             array2<double> C2star_cX_sY,
+                            double C2_RHS_BC_sX,
                             int time_i, double dt);
    void IonSystemSStruct_Matrix(double epsilon,
                                 array2<double> C1,
                                 array2<double> C2,
                                 array2<double> phi,
+                                double C1_LHS_BC_sX,
+                                double C1_RHS_BC_sX,
+                                double C2_RHS_BC_sX,
                                 int time_i, double dt);
    void IonSystemSStruct_Gauss(double epsilon);
    void IonSystemSStruct_RHS(array2<double> RHS_C1_star,
