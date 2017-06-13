@@ -29,6 +29,8 @@ class HypreSolverSStruct {
    int bc_iupper[2];
    int ndim;
    int object_type;
+   int n_pre = 1;
+   int n_post = 1;
    int istartc, iendc, jstartc, jendc;
    int solver_id = 0;
    bool restart;
@@ -63,10 +65,8 @@ class HypreSolverSStruct {
    void IonSystemSStruct_RHS(array2<double> RHS_C1_star,
                              array2<double> RHS_C2_star,
                              array2<double> RHS_phi_star);
-  void IonSystemSStruct_Solve(array2<double> C1,
-                              array2<double> C2,
-                              array2<double> phi);
-   
+  void IonSystemSStruct_Solve(void);
+  
   HypreSolverSStruct(Mesh& ref, MPI_Wrapper& ref2) : mesh(ref),mpi(ref2) {
     this-> mesh = mesh; 
     this->mpi = mpi;
