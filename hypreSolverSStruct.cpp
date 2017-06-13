@@ -228,6 +228,77 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
   delete [] c1_values;
   delete [] phi_values;
   delete [] c1_phi_values;
+
+  //incorporate boundary conditions
+  nentries = 1;
+  int nxvalues = nentries*mesh.n;
+  int nyvalues = nentries*mesh.m;
+  double *xvalues = new double[nxvalues]();
+  double *yvalues = new double[nyvalues]();
+  double *xclearval = new double[nxvalues]();
+  double *yclearval = new double[nyvalues]();
+  int stencil_indices_bc[1];
+  for (int j = 0; j < nyvalues; j++)
+    yclearval[j] = 0.0;
+  for (int i=0; i<nxvalues; i++)
+    xclearval[i] = 0.0;
+   if (mpi.pj == 0) {
+    //Bottom row of grid points 
+    bc_ilower[0] = mpi.pi*mesh.n;
+    bc_ilower[1] = mpi.pj*mesh.m;
+
+    bc_iupper[0] = bc_ilower[0] + mesh.n-1;
+    bc_iupper[1] = bc_ilower[1];
+
+    stencil_indices_bc[0] = 3; //3 means south values
+    HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper, 
+                                    var, nentries,
+                                    stencil_indices_bc,xclearval);   
+  }
+  if (mpi.pj == mpi.p2-1) {
+    // upper row of grid points 
+    bc_ilower[0] = mpi.pi*mesh.n;
+    bc_ilower[1] = mpi.pj*mesh.m + mesh.m-1;
+
+    bc_iupper[0] = bc_ilower[0] + mesh.n-1;
+    bc_iupper[1] = bc_ilower[1];
+
+    stencil_indices_bc[0] = 4; //4 means north values
+    HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
+                                    var, nentries,
+                                    stencil_indices_bc,xclearval);
+  }
+  if (mpi.pi == 0) {
+    // Left row of grid points
+    bc_ilower[0] = mpi.pi*mesh.n;
+    bc_ilower[1] = mpi.pj*mesh.m;
+
+    bc_iupper[0] = bc_ilower[0];
+    bc_iupper[1] = bc_ilower[1] + mesh.m-1;
+
+    stencil_indices_bc[0] = 1; //1 means west values
+    HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
+                                    var, nentries,
+                                    stencil_indices_bc,yclearval);
+  }
+  if (mpi.pi == mpi.p1-1) {
+    // Right row of grid points 
+    bc_ilower[0] = mpi.pi*mesh.n + mesh.n-1;
+    bc_ilower[1] = mpi.pj*mesh.m;
+
+    bc_iupper[0] = bc_ilower[0];
+    bc_iupper[1] = bc_ilower[1] + mesh.m-1;
+
+    stencil_indices_bc[0] = 2;
+
+    HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
+                                    var, nentries,
+                                    stencil_indices_bc,yclearval);
+  }
+  delete [] xvalues;
+  delete [] yvalues;
+  delete [] xclearval;
+  delete [] yclearval;
 }
 
 void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
@@ -316,6 +387,83 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
   delete [] c2_values;
   delete [] phi_values;
   delete [] c2_phi_values;
+  
+  //incorporate boundary conditions
+  nentries = 1;
+  int nxvalues = nentries*mesh.n;
+  int nyvalues = nentries*mesh.m;
+  double *xvalues = new double[nxvalues]();
+  double *yvalues = new double[nyvalues]();
+  double *xclearval = new double[nxvalues]();
+  double *yclearval = new double[nyvalues]();
+  int stencil_indices_bc[1];
+
+  for (int j = 0; j < nyvalues; j++)
+    yclearval[j] = 0.0;
+  for (int i=0; i<nxvalues; i++)
+    xclearval[i] = 0.0;
+
+  if (mpi.pj == 0) {
+    //Bottom row of grid points
+    bc_ilower[0] = mpi.pi*mesh.n;
+    bc_ilower[1] = mpi.pj*mesh.m;
+    bc_iupper[0] = bc_ilower[0] + mesh.n-1;
+    bc_iupper[1] = bc_ilower[1];
+
+    stencil_indices_bc[0] = 3; //3 means south values
+    HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper, 
+                                    var, nentries,
+                                    stencil_indices_bc,xclearval);  
+  }
+
+  if (mpi.pj == mpi.p2-1) {
+    // upper row of grid points
+    bc_ilower[0] = mpi.pi*mesh.n;
+    bc_ilower[1] = mpi.pj*mesh.m + mesh.m-1;
+
+    bc_iupper[0] = bc_ilower[0] + mesh.n-1;
+    bc_iupper[1] = bc_ilower[1];
+
+    stencil_indices_bc[0] = 4; //4 means north values
+    HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
+                                    var, nentries,
+                                    stencil_indices_bc,xclearval); 
+  }
+ 
+  if (mpi.pi == 0) {
+    // Left row of grid points
+    bc_ilower[0] = mpi.pi*mesh.n;
+    bc_ilower[1] = mpi.pj*mesh.m;
+
+    bc_iupper[0] = bc_ilower[0];
+    bc_iupper[1] = bc_ilower[1] + mesh.m-1;
+
+    stencil_indices_bc[0] = 1; //1 means west values
+    HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
+                                    var, nentries,
+                                    stencil_indices_bc,yclearval);
+  }
+
+  if (mpi.pi == mpi.p1-1) {
+    // Right row of grid points 
+    bc_ilower[0] = mpi.pi*mesh.n + mesh.n-1;
+    bc_ilower[1] = mpi.pj*mesh.m;
+
+    bc_iupper[0] = bc_ilower[0];
+    bc_iupper[1] = bc_ilower[1] + mesh.m-1;
+
+    stencil_indices_bc[0] = 2;
+
+    HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
+                                    var, nentries,
+                                    stencil_indices_bc,yclearval);
+  }   
+
+
+  delete [] xvalues;
+  delete [] yvalues;
+  delete [] xclearval;
+  delete [] yclearval;
 }
 
 
@@ -330,7 +478,7 @@ void HypreSolverSStruct::IonSystemSStruct_Gauss(double epsilon) {
   int c2_phi_indices[1] = {6};
 
   //set the phi-c1 connections
-  var = 0;
+  var = 2; //set values for phi connections
   int nentries = 1;
   int nvalues = nentries*mesh.m*mesh.n;
   double *phi_c_values = new double[nvalues];
@@ -341,7 +489,7 @@ void HypreSolverSStruct::IonSystemSStruct_Gauss(double epsilon) {
                                   var, nentries,
                                   c1_phi_indices, phi_c_values);
   //set the phi-c2 connections
-  var = 2;
+  var = 2; //set values for phi connections
   for (int i=0; i<nvalues; i++) {
     phi_c_values[i] = -1/(2*epsilon*epsilon);
   }
@@ -349,7 +497,7 @@ void HypreSolverSStruct::IonSystemSStruct_Gauss(double epsilon) {
                                   var, nentries,
                                   c2_phi_indices, phi_c_values);
   //set the phi-phi connections
-  var = 1;
+  var = 2; //set values for phi connections
   nentries = 5;
   nvalues = nentries*mesh.m*mesh.n;
   double *phi_values = new double[nvalues];
