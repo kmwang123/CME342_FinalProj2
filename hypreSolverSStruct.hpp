@@ -75,7 +75,7 @@ class HypreSolverSStruct {
     iupper[0] = ilower[0] + mesh.n-1;
     iupper[1] = ilower[1] + mesh.m-1;
   }
-  ~HypreSolverSStruct(); 
+  void CleanUp(void); 
   private:
     Mesh& mesh;
     MPI_Wrapper& mpi;

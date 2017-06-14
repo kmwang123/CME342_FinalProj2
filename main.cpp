@@ -26,8 +26,8 @@ int main(int argc,char** argv)  {
   //int myid, num_procs;
   MPI_Init(&argc, &argv);
   MPI_Wrapper mpi;
-  mpi.p1 = 2;//p1;
-  mpi.p2 = 3;//p2;
+  mpi.p1 = 1;//p1;
+  mpi.p2 = 1;//p2;
   mpi.pi = mpi.myid % mpi.p1;
   mpi.pj = mpi.myid / mpi.p1;
   mpi.getNeighbors();
@@ -137,7 +137,7 @@ int main(int argc,char** argv)  {
     //nsSys.updateConvergedValues();
   }
 
-  //ion_laplacian.CleanUp();
+  //ion_bigM.CleanUp();
   MPI_Finalize();
   return 0;
 }
