@@ -381,7 +381,7 @@ void HypreSolver::GaussLawSolveStruct_Solve(Mesh mesh, MPI_Wrapper mpi, int ndim
     int n_post = 1;
     int skip = 0;
     int rap = 0;
-    int relax = 1;
+    int relax = 3;
 
     // Options and setup 
     HYPRE_StructPFMGCreate(MPI_COMM_WORLD, &solver);

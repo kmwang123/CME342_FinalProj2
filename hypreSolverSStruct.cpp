@@ -47,7 +47,7 @@ void HypreSolverSStruct::IonSystemSStructInit_Matrix(int ndim, bool restart) {
   HYPRE_SStructStencilCreate(ndim, stencil_size, &stencil_phi);
   //first 5 entries are for the phi-phi connections
   var = 1; //connect to variable 1
-  for (entry=0; entry < stencil_size-5; entry++) 
+  for (entry=0; entry < 5; entry++) 
     HYPRE_SStructStencilSetEntry(stencil_phi, entry, offsets1[entry], var);
   var = 0; //connect to variable 0
   entry = 5;
@@ -143,9 +143,9 @@ void HypreSolverSStruct::IonSystemSStruct_Matrix(double epsilon,
     //cout << endl;
   }
 
-  IonSystemSStruct_Gauss(epsilon);
-  IonSystemSStruct_C1(phi,C1,phiM_sX_cY,C1star_sX_cY,phiM_cX_sY,C1star_cX_sY,C1_LHS_BC_sX,C1_RHS_BC_sX,time_i,dt);
-  IonSystemSStruct_C2(phi,C2,phiM_sX_cY,C2star_sX_cY,phiM_cX_sY,C2star_cX_sY,C2_RHS_BC_sX,time_i,dt);
+  //IonSystemSStruct_Gauss(epsilon);
+  //IonSystemSStruct_C1(phi,C1,phiM_sX_cY,C1star_sX_cY,phiM_cX_sY,C1star_cX_sY,C1_LHS_BC_sX,C1_RHS_BC_sX,time_i,dt);
+  //IonSystemSStruct_C2(phi,C2,phiM_sX_cY,C2star_sX_cY,phiM_cX_sY,C2star_cX_sY,C2_RHS_BC_sX,time_i,dt);
   
   HYPRE_SStructMatrixAssemble(A);//matrix is now ready to be used
 } 
@@ -791,7 +791,7 @@ void HypreSolverSStruct::IonSystemSStruct_Gauss(double epsilon) {
   int c2_phi_indices[1] = {6};
 
   //set the phi-c1 connections
-  var = 2; //set values for phi connections
+  var = 1; //set values for phi connections
   int nentries = 1;
   int nvalues = nentries*mesh.m*mesh.n;
   double *phi_c_values = new double[nvalues];
@@ -802,15 +802,16 @@ void HypreSolverSStruct::IonSystemSStruct_Gauss(double epsilon) {
                                   var, nentries,
                                   c1_phi_indices, phi_c_values);
   //set the phi-c2 connections
-  var = 2; //set values for phi connections
+  var = 1; //set values for phi connections
   for (int i=0; i<nvalues; i++) {
     phi_c_values[i] = -1/(2*epsilon*epsilon);
   }
   HYPRE_SStructMatrixSetBoxValues(A, part, ilower, iupper,
                                   var, nentries,
-                                  c2_phi_indices, phi_c_values);
+                                   c2_phi_indices, phi_c_values);
+
   //set the phi-phi connections
-  var = 2; //set values for phi connections
+  var = 1; //set values for phi connections
   nentries = 5;
   nvalues = nentries*mesh.m*mesh.n;
   double *phi_values = new double[nvalues];
@@ -831,6 +832,9 @@ void HypreSolverSStruct::IonSystemSStruct_Gauss(double epsilon) {
   HYPRE_SStructMatrixSetBoxValues(A, part, ilower, iupper,
                                   var, nentries,
                                   phi_indices, phi_values);
+
+  
+
   delete [] phi_values;
   delete [] phi_c_values;
 
@@ -838,7 +842,7 @@ void HypreSolverSStruct::IonSystemSStruct_Gauss(double epsilon) {
   //incorporate boundary conditions
   //for Gauss's law
   nentries = 1;
-  var = 2;
+  var = 1;
   int nxvalues = nentries*mesh.n;
   int nyvalues = nentries*mesh.m;
   double *xvalues = new double[nxvalues]();
