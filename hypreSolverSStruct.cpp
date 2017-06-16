@@ -60,10 +60,10 @@ void HypreSolverSStruct::IonSystemSStructInit_Matrix(int ndim, bool restart) {
   int offsets2[10][2] = {{0,0}, {-1,0}, {1,0}, {0,-1}, {0,1}, {0,0}, {-1,0}, {1,0}, {0,-1}, {0,1}};
   stencil_size = 10;
   HYPRE_SStructStencilCreate(ndim, stencil_size, &stencil_c2);
-  var = 1; //connect to variable 1 (phi)
+  var = 2; //connect to variable 2 (c2)
   for (entry=0; entry < stencil_size-5; entry++) 
     HYPRE_SStructStencilSetEntry(stencil_c2, entry, offsets2[entry], var);
-  var = 2; //connect to variable 2 (c2)
+  var = 1; //connect to variable 1 (phi)
   for (entry=5; entry < stencil_size; entry++)  
     HYPRE_SStructStencilSetEntry(stencil_c2, entry, offsets2[entry], var);
 
@@ -144,8 +144,8 @@ void HypreSolverSStruct::IonSystemSStruct_Matrix(double epsilon,
   }
 
   //IonSystemSStruct_Gauss(epsilon);
-  IonSystemSStruct_C1(phi,C1,phiM_sX_cY,C1star_sX_cY,phiM_cX_sY,C1star_cX_sY,C1_LHS_BC_sX,C1_RHS_BC_sX,time_i,dt);
-  //IonSystemSStruct_C2(phi,C2,phiM_sX_cY,C2star_sX_cY,phiM_cX_sY,C2star_cX_sY,C2_RHS_BC_sX,time_i,dt);
+  //IonSystemSStruct_C1(phi,C1,phiM_sX_cY,C1star_sX_cY,phiM_cX_sY,C1star_cX_sY,C1_LHS_BC_sX,C1_RHS_BC_sX,time_i,dt);
+  IonSystemSStruct_C2(phi,C2,phiM_sX_cY,C2star_sX_cY,phiM_cX_sY,C2star_cX_sY,C2_RHS_BC_sX,time_i,dt);
   HYPRE_SStructMatrixAssemble(A);//matrix is now ready to be used
 } 
 void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
@@ -477,7 +477,6 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
                                    stencil_indices_bc,yphic1_values);
   
   }
-  //int ret = HYPRE_SStructMatrixPrint("A",A,0);
   delete [] xvalues;
   delete [] yvalues;
   delete [] xphi_values;
@@ -577,7 +576,6 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
   HYPRE_SStructMatrixAddToBoxValues(A, part, ilower, iupper,
                                   var, nentries,
                                   c2_phi_indices, c2_phi_values); 
-  
   delete [] c2_values;
   delete [] phi_values;
   delete [] c2_phi_values;
@@ -656,7 +654,6 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
                                     var, nentries,
                                     stencil_indices_bc,xphic2_values);
   }
-
   if (mpi.pj == mpi.p2-1) {
     // upper row of grid points
     bc_ilower[0] = mpi.pi*mesh.n;
@@ -713,7 +710,6 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
                                     var, nentries,
                                     stencil_indices_bc,xphic2_values);
   }
- 
   if (mpi.pi == 0) {
     // Left row of grid points
     bc_ilower[0] = mpi.pi*mesh.n;
@@ -753,7 +749,6 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
                                     var, nentries,
                                     stencil_indices_bc,yphic2_values);
   }
-
   if (mpi.pi == mpi.p1-1) {
     // Right row of grid points 
     bc_ilower[0] = mpi.pi*mesh.n + mesh.n-1;
@@ -796,6 +791,7 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
                                     stencil_indices_bc,yphic2_values);
   }   
 
+int ret = HYPRE_SStructMatrixPrint("A",A,0);
 
   delete [] xvalues;
   delete [] yvalues;
