@@ -65,7 +65,9 @@ class HypreSolverSStruct {
    void IonSystemSStruct_RHS(array2<double> RHS_C1_star,
                              array2<double> RHS_C2_star,
                              array2<double> RHS_phi_star);
-  void IonSystemSStruct_Solve(void);
+  void IonSystemSStruct_Solve(array2<double> C1_star,
+                              array2<double> C2_star,
+                              array2<double> phi);
   
   HypreSolverSStruct(Mesh& ref, MPI_Wrapper& ref2) : mesh(ref),mpi(ref2) {
     this-> mesh = mesh; 

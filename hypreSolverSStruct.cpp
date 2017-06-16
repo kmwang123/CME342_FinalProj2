@@ -143,10 +143,9 @@ void HypreSolverSStruct::IonSystemSStruct_Matrix(double epsilon,
     //cout << endl;
   }
 
-  IonSystemSStruct_Gauss(epsilon);
+  //IonSystemSStruct_Gauss(epsilon);
   IonSystemSStruct_C1(phi,C1,phiM_sX_cY,C1star_sX_cY,phiM_cX_sY,C1star_cX_sY,C1_LHS_BC_sX,C1_RHS_BC_sX,time_i,dt);
-  IonSystemSStruct_C2(phi,C2,phiM_sX_cY,C2star_sX_cY,phiM_cX_sY,C2star_cX_sY,C2_RHS_BC_sX,time_i,dt);
-  int ret = HYPRE_SStructMatrixPrint("A",A,0);
+  //IonSystemSStruct_C2(phi,C2,phiM_sX_cY,C2star_sX_cY,phiM_cX_sY,C2star_cX_sY,C2_RHS_BC_sX,time_i,dt);
   HYPRE_SStructMatrixAssemble(A);//matrix is now ready to be used
 } 
 void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
@@ -242,7 +241,6 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
   HYPRE_SStructMatrixAddToBoxValues(A, part, ilower, iupper,
                                   var, nentries,
                                   c1_phi_indices, c1_phi_values); 
-
   delete [] c1_values;
   delete [] phi_values;
   delete [] c1_phi_values;
@@ -313,7 +311,7 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
       xphi_values[i] -(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[0]*mesh.dndy_sY[1]*phiM_cX_sY[i][0];
       xphic1_values[i] = -(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[0]*mesh.dndy_sY[1]*C1star_cX_sY[i][0];
       //if (mpi.myid ==0)
-        //cout << xphi_values[i] << endl;
+        //cout << xphic1_values[i] << endl;
     }
     var = 0;
     HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
@@ -326,9 +324,7 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
     HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xphic1_values);
-  
   }
-
   if (mpi.pj == mpi.p2-1) {
     // upper row of grid points 
     bc_ilower[0] = mpi.pi*mesh.n;
@@ -342,7 +338,8 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
     HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xclearval);
-    var = 1; 
+    stencil_indices_bc[0] = 9; //9 means north values
+    //var = 1;
     HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xclearval);
@@ -394,10 +391,7 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
     HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xphic1_values);
- 
-
   }
-
   if (mpi.pi == 0) {
     // Left row of grid points
     bc_ilower[0] = mpi.pi*mesh.n;
@@ -424,6 +418,8 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
       yphi_values[j] = -(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[0]*mesh.dzdx_sX[1]*phiM_sX_cY[0][j];
       yphic1_values[j] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[0]*(mesh.dzdx_sX[0]*2*C1_LHS_BC_sX+
                                                                 mesh.dzdx_sX[1]*C1star_sX_cY[0][j]);
+      //if (mpi.myid == 0) 
+        //cout << yphic1_values[j] << endl;
     }
     //use set to replace values
     var = 0;
@@ -437,8 +433,8 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
     HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,yphic1_values);
-  
   }
+
   if (mpi.pi == mpi.p1-1) {
     // Right row of grid points 
     bc_ilower[0] = mpi.pi*mesh.n + mesh.n-1;
@@ -481,6 +477,7 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
                                    stencil_indices_bc,yphic1_values);
   
   }
+  //int ret = HYPRE_SStructMatrixPrint("A",A,0);
   delete [] xvalues;
   delete [] yvalues;
   delete [] xphi_values;
@@ -1013,7 +1010,9 @@ void HypreSolverSStruct::IonSystemSStruct_RHS(array2<double> RHS_C1_star,
   delete [] values2;
 }
 
-void HypreSolverSStruct::IonSystemSStruct_Solve(void) {
+void HypreSolverSStruct::IonSystemSStruct_Solve(array2<double> C1_star,
+                                                array2<double> C2_star,
+                                                array2<double> phi) {
   int nvalues = mesh.n*mesh.m;
   int part = 0;
   int var;
@@ -1029,8 +1028,8 @@ void HypreSolverSStruct::IonSystemSStruct_Solve(void) {
     //GMRES parameters
     HYPRE_SStructGMRESSetMaxIter(solver, 50 );
     HYPRE_SStructGMRESSetTol(solver, 1.0e-06 );
-    HYPRE_SStructGMRESSetPrintLevel(solver, 2 ); 
-    HYPRE_SStructGMRESSetLogging(solver, 1);
+    //HYPRE_SStructGMRESSetPrintLevel(solver, 2 ); 
+    //HYPRE_SStructGMRESSetLogging(solver, 1);
     //use SysPFMG as precondititioner
     HYPRE_SStructSysPFMGCreate(mpi.comm, &precond);
     //Set sysPFMG parameters
@@ -1055,7 +1054,28 @@ void HypreSolverSStruct::IonSystemSStruct_Solve(void) {
 
   }
 
+  //reshape and store in matrices
+  double *values = new double[nvalues];
+  double *values1 = new double[nvalues];
+  double *values2 = new double[nvalues];
+  var = 0;
+  HYPRE_SStructVectorGetBoxValues(x,part,ilower,iupper,var,values);
+  var = 1;
+  HYPRE_SStructVectorGetBoxValues(x,part,ilower,iupper,var,values1);
+  var = 2;
+  HYPRE_SStructVectorGetBoxValues(x,part,ilower,iupper,var,values2);
 
+  for (int j=0; j<mesh.m; j++) {
+    for (int i=0; i<mesh.n; i++) {
+      C1_star[istartc+i][jstartc+j] = values[j*mesh.n+i];
+      phi[istartc+i][jstartc+j] = values1[j*mesh.n+i];
+      C2_star[istartc+i][jstartc+j] = values2[j*mesh.n+i];
+    }
+  }
+
+  delete [] values;
+  delete [] values1;
+  delete [] values2;
 }
 
 void HypreSolverSStruct::CleanUp(void) {

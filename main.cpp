@@ -89,10 +89,17 @@ int main(int argc,char** argv)  {
   const int numOfIterations = 1;//3; NEED TO CHANGE BACK!!!
   const int numOfTimeSteps = int(T_final/dt);
 
+  //getting wall clock time
+  double start, finish, time;
+    MPI_Barrier(MPI_COMM_WORLD);
+    start = MPI_Wtime();  
+
   /*Setup Mesh*/
   Mesh mesh = meshSetup(Lx,dz,N,beta,dx_max,dx_min,Ly,dn,M,dy_min,mpi.p1,mpi.p2);
-  mesh.genXmesh("exponential");
+  //mesh.genXmesh("exponential");
   mesh.genYmesh("twoSided"); 
+  mesh.genXmesh("exponential");
+  //mesh.genYmesh("uniform"); 
 
   //mesh.printYmesh("y_vect_sY");
   //mesh.printYmesh("dndy_sY");
@@ -130,12 +137,20 @@ int main(int argc,char** argv)  {
       ion_laplacian.updateRHSPhi(mesh,mpi,ndim,ionSys.C1_star, ionSys.C2_star, ionSys.phi,ionSys.RHS_phi_star,epsilon, Ey_SBC_sX, Ey_NBC_sX, Phi_LHS_BC_sX,Phi_RHS_BC_sX);
       ion_bigM.IonSystemSStruct_Matrix(epsilon,ionSys.C1_star, ionSys.C2_star, ionSys.phi,C1_LHS_BC_sX,C1_RHS_BC_sX,C2_RHS_BC_sX,time_i,dt);
       ion_bigM.IonSystemSStruct_RHS(ionSys.RHS_C1_star, ionSys.RHS_C2_star, ionSys.RHS_phi_star);
-      //ion_bigM.IonSystemSStruct_Solve();
+      //ion_bigM.IonSystemSStruct_Solve(ionSys.C1_star,ionSys.C2_star,ionSys.phi);
+      //ionSys.printOneConcentration("C1");
     }
     //////////////////// End Iteration ///////////////////////
     ionSys.updateConvergedValues();
     //nsSys.updateConvergedValues();
   }
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  finish = MPI_Wtime();
+  time = finish-start;
+  if (mpi.myid==0) {
+	cout << "Time: " << time << endl;
+    }
 
   //ion_bigM.CleanUp();
   MPI_Finalize();
