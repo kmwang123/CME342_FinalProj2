@@ -23,8 +23,8 @@ void HypreSolverSStruct::IonSystemSStructInit_Matrix(int ndim, bool restart) {
   HYPRE_SStructVariable vartypes[3] = {HYPRE_SSTRUCT_VARIABLE_CELL,
                                        HYPRE_SSTRUCT_VARIABLE_CELL,
                                        HYPRE_SSTRUCT_VARIABLE_CELL};
-  for (int i=0; i<nparts; i++) 
-    HYPRE_SStructGridSetVariables(grid, i, nvars, vartypes);
+  //for (int i=0; i<nparts; i++) 
+  HYPRE_SStructGridSetVariables(grid, part, nvars, vartypes);
   //finalize grid assembly
   HYPRE_SStructGridAssemble(grid);
 
@@ -34,7 +34,7 @@ void HypreSolverSStruct::IonSystemSStructInit_Matrix(int ndim, bool restart) {
   HYPRE_SStructStencilCreate(ndim, stencil_size, &stencil_c1);
   //the first 5 entries are for the c1-c1 connections
   var = 0; //connect to variable 0
-  for (entry=0; entry < stencil_size-5; entry++) 
+  for (entry=0; entry < 5; entry++) 
     HYPRE_SStructStencilSetEntry(stencil_c1, entry, offsets[entry], var);
   //the last 5 entries are for the c1-phi connections
   var = 1; //connect to variable 1
@@ -61,7 +61,7 @@ void HypreSolverSStruct::IonSystemSStructInit_Matrix(int ndim, bool restart) {
   stencil_size = 10;
   HYPRE_SStructStencilCreate(ndim, stencil_size, &stencil_c2);
   var = 2; //connect to variable 2 (c2)
-  for (entry=0; entry < stencil_size-5; entry++) 
+  for (entry=0; entry < 5; entry++) 
     HYPRE_SStructStencilSetEntry(stencil_c2, entry, offsets2[entry], var);
   var = 1; //connect to variable 1 (phi)
   for (entry=5; entry < stencil_size; entry++)  
@@ -90,9 +90,12 @@ void HypreSolverSStruct::IonSystemSStructInit_Matrix(int ndim, bool restart) {
 }
 
 void HypreSolverSStruct::IonSystemSStruct_Matrix(double epsilon,
-                                                 array2<double> C1,
-                                                 array2<double> C2,
-                                                 array2<double> phi,
+                                                 array2<double> phiM_sX_cY,
+                                                 array2<double> C1star_sX_cY,
+                                                 array2<double> C2star_sX_cY,
+                                                 array2<double> phiM_cX_sY,
+                                                 array2<double> C1star_cX_sY,
+                                                 array2<double> C2star_cX_sY,
                                                  double C1_LHS_BC_sX,
                                                  double C1_RHS_BC_sX,
                                                  double C2_RHS_BC_sX,
@@ -108,49 +111,13 @@ void HypreSolverSStruct::IonSystemSStruct_Matrix(double epsilon,
   HYPRE_SStructMatrixSetObjectType(A, object_type);
   HYPRE_SStructMatrixInitialize(A);
 
-  //initialize and compute shared data structures
-  array2<double> phiM_sX_cY(mesh.n-1,mesh.m);
-  array2<double> C1star_sX_cY(mesh.n-1,mesh.m); 
-  array2<double> C2star_sX_cY(mesh.n-1,mesh.m);
-  array2<double> phiM_cX_sY(mesh.n,mesh.m-1);
-  array2<double> C1star_cX_sY(mesh.n,mesh.m-1);
-  array2<double> C2star_cX_sY(mesh.n,mesh.m-1);
-
-  istartc = mpi.hsize;
-  iendc = mesh.n+mpi.hsize-1;
-  jstartc = mpi.hsize;
-  jendc = mesh.m+mpi.hsize-1;
-
-  for (int i=0; i<mesh.n-1; i++) {
-    for (int j=0; j<mesh.m; j++) {
-      phiM_sX_cY[i][j] = 0.5*(phi[istartc+i+1][jstartc+j] - phi[istartc+i][jstartc+j]); 
-      C1star_sX_cY[i][j] = 0.5*(C1[istartc+1+i][jstartc+j] + C1[istartc+i][jstartc+j]);
-      C2star_sX_cY[i][j] = 0.5*(C2[istartc+1+i][jstartc+j] + C2[istartc+i][jstartc+j]);
-      //if (mpi.myid == 0)
-      //  cout << phiM_sX_cY[i][j] << " ";
-    }
-    //cout << endl;
-  }
-
-  for (int i=0; i<mesh.n; i++) {
-    for (int j=0; j<mesh.m-1; j++) {
-      phiM_cX_sY[i][j] = 0.5*(phi[istartc+i][jstartc+j+1] - phi[istartc+i][jstartc+j]);
-      C1star_cX_sY[i][j] = 0.5*(C1[istartc+i][jstartc+j+1] + C1[istartc+i][jstartc+j]);
-      C2star_cX_sY[i][j] = 0.5*(C2[istartc+i][jstartc+j+1] + C2[istartc+i][jstartc+j]);
-      //if (mpi.myid == 0)
-        //cout << phiM_cX_sY[i][j] << " ";
-    }
-    //cout << endl;
-  }
-
-  //IonSystemSStruct_Gauss(epsilon);
-  //IonSystemSStruct_C1(phi,C1,phiM_sX_cY,C1star_sX_cY,phiM_cX_sY,C1star_cX_sY,C1_LHS_BC_sX,C1_RHS_BC_sX,time_i,dt);
-  IonSystemSStruct_C2(phi,C2,phiM_sX_cY,C2star_sX_cY,phiM_cX_sY,C2star_cX_sY,C2_RHS_BC_sX,time_i,dt);
+  IonSystemSStruct_C1(phiM_sX_cY,C1star_sX_cY,phiM_cX_sY,C1star_cX_sY,C1_LHS_BC_sX,C1_RHS_BC_sX,time_i,dt);
+  //IonSystemSStruct_C2(phiM_sX_cY,C2star_sX_cY,phiM_cX_sY,C2star_cX_sY,C2_RHS_BC_sX,time_i,dt);
+  IonSystemSStruct_Gauss(epsilon);
+  int ret = HYPRE_SStructMatrixPrint("A",A,0);
   HYPRE_SStructMatrixAssemble(A);//matrix is now ready to be used
 } 
-void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
-                                             array2<double> C1, 
-                                             array2<double> phiM_sX_cY,
+void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phiM_sX_cY,
                                              array2<double> C1star_sX_cY,
                                              array2<double> phiM_cX_sY,
                                              array2<double> C1star_cX_sY,
@@ -166,9 +133,9 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
   
   int nentries = 5;
   int nvalues = nentries*mesh.m*mesh.n;
-  double *c1_values = new double[nvalues];
-  double *phi_values = new double[nvalues];
-  double *c1_phi_values = new double[nvalues];
+  double *c1_values = new double[nvalues]();
+  double *phi_values = new double[nvalues]();
+  double *c1_phi_values = new double[nvalues]();
   //set interior values 
   int elnumX, elnumY,ix,jy;
   for (int i = 0; i < nvalues; i += nentries) {
@@ -177,24 +144,36 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
     elnumX = ((i/nentries)%mesh.n) + mpi.pi*mesh.n;
     elnumY = ((i/nentries)/mesh.n) + mpi.pj*mesh.m;
     
-    if (ix != 0 && ix != mesh.n-1) {
-      //diff
-      c1_values[i] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*(mesh.dzdx_sX[elnumX]+mesh.dzdx_sX[elnumX+1]);
-      //em
-      phi_values[i] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*( phiM_sX_cY[ix-1][jy]*mesh.dzdx_sX[elnumX]
-                                                                  -phiM_sX_cY[ix][jy]*mesh.dzdx_sX[elnumX+1] );
-      c1_phi_values[i] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*(C1star_sX_cY[ix-1][jy]*mesh.dzdx_sX[elnumX]
-                                                                    +C1star_sX_cY[ix][jy]*mesh.dzdx_sX[elnumX+1] );
+    if (elnumX != 0 && elnumX != mesh.N-1) {
+     // if (mpi.myid == 1)
+     //     cout << ix << endl;
+      if (diff) {
+        c1_values[i] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*(mesh.dzdx_sX[elnumX]+mesh.dzdx_sX[elnumX+1]);
+        //if (mpi.myid == 1) { 
+        //  cout << c1_values[i] << endl;
+        //}
+      }
+      if (em) {
+        //if (mpi.myid == 1)
+          //cout << ix << endl;
+        phi_values[i] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*( phiM_sX_cY[ix][jy]*mesh.dzdx_sX[elnumX]
+                                                                  -phiM_sX_cY[ix+1][jy]*mesh.dzdx_sX[elnumX+1] );
+        c1_phi_values[i] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*(C1star_sX_cY[ix][jy]*mesh.dzdx_sX[elnumX]
+                                                                    +C1star_sX_cY[ix+1][jy]*mesh.dzdx_sX[elnumX+1] );
+      }
     }
-    if (jy != 0 && jy != mesh.m-1) {
+    if (elnumY != 0 && elnumY != mesh.M-1) {
       //diffusion in Y
-      c1_values[i] = c1_values[i] +(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*(mesh.dndy_sY[elnumY]+mesh.dndy_sY[elnumY+1]);
- 
+      if (diff) {
+        c1_values[i] = c1_values[i] +(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*(mesh.dndy_sY[elnumY]+mesh.dndy_sY[elnumY+1]);
+      }
       //em
-      phi_values[i] = phi_values[i] + (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*(phiM_cX_sY[ix][jy-1]*mesh.dndy_sY[elnumY] 
-                                                                                     -phiM_cX_sY[ix][jy]  *mesh.dndy_sY[elnumY+1] );
-      c1_phi_values[i] = c1_phi_values[i] + (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*(C1star_cX_sY[ix][jy-1]*mesh.dndy_sY[elnumY]
-                                                                                       +C1star_cX_sY[ix][jy]  *mesh.dndy_sY[elnumY+1] );
+      if (em) {
+        phi_values[i] = phi_values[i] + (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*(phiM_cX_sY[ix][jy]*mesh.dndy_sY[elnumY] 
+                                                                                     -phiM_cX_sY[ix][jy+1]  *mesh.dndy_sY[elnumY+1] );
+        c1_phi_values[i] = c1_phi_values[i] + (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*(C1star_cX_sY[ix][jy]*mesh.dndy_sY[elnumY]
+                                                                                       +C1star_cX_sY[ix][jy+1]  *mesh.dndy_sY[elnumY+1] );
+      }
     }
    if (time_i == 1 && !restart) {
      phi_values[i] = phi_values[i] + 1./dt;
@@ -202,37 +181,48 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
    else {
      phi_values[i] = phi_values[i] + 3./(2*dt);
    }
-    if (ix != 0) {
-      //diffusion
-      c1_values[i+1] =-(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*mesh.dzdx_sX[elnumX]; //west
-      //em
-      phi_values[i+1] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*phiM_sX_cY[ix-1][jy]*mesh.dzdx_sX[elnumX];//west
-      c1_phi_values[i+1] = -(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*C1star_sX_cY[ix-1][jy]*mesh.dzdx_sX[elnumX];//west
+    if (elnumX != 0) {
+      if (diff) {
+        c1_values[i+1] =-(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*mesh.dzdx_sX[elnumX]; //west
+      }
+     
+      if (em) {
+        phi_values[i+1] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*phiM_sX_cY[ix][jy]*mesh.dzdx_sX[elnumX];//west
+        c1_phi_values[i+1] = -(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*C1star_sX_cY[ix][jy]*mesh.dzdx_sX[elnumX];//west
+      }
     }
-    if (ix != mesh.n-1) {
-      //diffusion
-      c1_values[i+2] =-(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*mesh.dzdx_sX[elnumX+1]; //east
-      //em
-      phi_values[i+2] = -(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*phiM_sX_cY[ix][jy]*mesh.dzdx_sX[elnumX+1]; //east 
-      c1_phi_values[i+2] = -(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*C1star_sX_cY[ix][jy]*mesh.dzdx_sX[elnumX+1]; //east 
+    if (elnumX != mesh.N-1) {
+      if (diff) {
+        c1_values[i+2] =-(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*mesh.dzdx_sX[elnumX+1]; //east
+      }
+      if (em) {
+        phi_values[i+2] = -(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*phiM_sX_cY[ix+1][jy]*mesh.dzdx_sX[elnumX+1]; //east 
+        c1_phi_values[i+2] = -(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*C1star_sX_cY[ix+1][jy]*mesh.dzdx_sX[elnumX+1]; //east 
+      }
     }
-    if (jy != 0 && jy != mesh.m-1) {
-      //diff
-      c1_values[i+3] =-(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*mesh.dndy_sY[elnumY];//south
-      c1_values[i+4] =-(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*mesh.dndy_sY[elnumY+1];//north
-      //em
-      phi_values[i+3] = (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*phiM_cX_sY[ix][jy-1]*mesh.dndy_sY[elnumY];//south
-      phi_values[i+4] = -(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*phiM_cX_sY[ix][jy]*mesh.dndy_sY[elnumY+1]; //north
-      c1_phi_values[i+3] = -(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*C1star_cX_sY[ix][jy-1]*mesh.dndy_sY[elnumY];//south
-      c1_phi_values[i+4] = -(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*C1star_cX_sY[ix][jy]*mesh.dndy_sY[elnumY+1]; //north
+    if (elnumY != 0 && elnumY != mesh.M-1) {
+      if (diff) {
+        c1_values[i+3] =-(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*mesh.dndy_sY[elnumY];//south
+        c1_values[i+4] =-(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*mesh.dndy_sY[elnumY+1];//north
+      }
+      if (em) {
+        phi_values[i+3] = (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*phiM_cX_sY[ix][jy]*mesh.dndy_sY[elnumY];//south
+        phi_values[i+4] = -(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*phiM_cX_sY[ix][jy+1]*mesh.dndy_sY[elnumY+1]; //north
+        c1_phi_values[i+3] = -(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*C1star_cX_sY[ix][jy]*mesh.dndy_sY[elnumY];//south
+        c1_phi_values[i+4] = -(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*C1star_cX_sY[ix][jy+1]*mesh.dndy_sY[elnumY+1]; //north
+      }
     }
+  
   }
 
   //set the c1-c1 connections
   var = 0;
+  if (diff) {
   HYPRE_SStructMatrixSetBoxValues(A, part, ilower, iupper,
                                   var, nentries,
                                   c1_indices, c1_values);
+  }
+  if (em) {
   //set the c1-c1 connections
   HYPRE_SStructMatrixAddToBoxValues(A, part, ilower, iupper,
                                   var, nentries,
@@ -241,6 +231,7 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
   HYPRE_SStructMatrixAddToBoxValues(A, part, ilower, iupper,
                                   var, nentries,
                                   c1_phi_indices, c1_phi_values); 
+  }
   delete [] c1_values;
   delete [] phi_values;
   delete [] c1_phi_values;
@@ -257,6 +248,12 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
   double *yphic1_values = new double[nyvalues]();
   double *xclearval = new double[nxvalues]();
   double *yclearval = new double[nyvalues]();
+
+  istarts = mpi.hsize;
+  jstarts = mpi.hsize;
+  iends = istarts+mesh.n_s-2;
+  jends = istarts+mesh.m_s-2;
+
   int stencil_indices_bc[1];
   for (int j = 0; j < nyvalues; j++)
     yclearval[j] = 0.0;
@@ -270,37 +267,47 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
     bc_iupper[0] = bc_ilower[0] + mesh.n-1;
     bc_iupper[1] = bc_ilower[1];
 
-    stencil_indices_bc[0] = 3; //3 means south values
     var = 0;
-    HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper, 
+    if (diff) {
+      stencil_indices_bc[0] = 3; //3 means south values
+      HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper, 
                                     var, nentries,
                                     stencil_indices_bc,xclearval);  
+    }
+    if (em) {
     stencil_indices_bc[0] = 8; //8 means south values for phi connection
     HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xclearval);
-
+    }
     //need to change center value
     stencil_indices_bc[0] = 0; //0 means center values
     for (int i=0; i<nxvalues; i++) {
-      //diff
-      xvalues[i] = (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[0]*mesh.dndy_sY[1];
-      xphi_values[i] = -(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[0]*phiM_cX_sY[i][0]*mesh.dndy_sY[1];
-      xphic1_values[i] = (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[0]*mesh.dndy_sY[1]*C1star_cX_sY[i][0];
+      if (diff) {
+        xvalues[i] = (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[0]*mesh.dndy_sY[1];
+      }
+      if (em) {
+        xphi_values[i] = -(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[0]*phiM_cX_sY[i][jstarts]*mesh.dndy_sY[1];
+        xphic1_values[i] = (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[0]*mesh.dndy_sY[1]*C1star_cX_sY[i][jstarts];
       //if (mpi.myid==0) 
         //cout << xphic1_values[i] << endl;
+      }
     }
     var = 0; 
-    HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
+    if (diff) {
+      HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xvalues);
-    HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
+    }  
+    if (em) {
+      HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xphi_values);
-    stencil_indices_bc[0] = 5; //5 means center values for phi connection
-    HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
+      stencil_indices_bc[0] = 5; //5 means center values for phi connection
+      HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xphic1_values);
+    }
 
     //need to change north values
     stencil_indices_bc[0] = 4; //4 means north values
@@ -308,15 +315,18 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
       //diff
       xvalues[i] = -(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[0]*mesh.dndy_sY[1];
       //em
-      xphi_values[i] -(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[0]*mesh.dndy_sY[1]*phiM_cX_sY[i][0];
-      xphic1_values[i] = -(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[0]*mesh.dndy_sY[1]*C1star_cX_sY[i][0];
+      xphi_values[i] -(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[0]*mesh.dndy_sY[1]*phiM_cX_sY[i][jstarts];
+      xphic1_values[i] = -(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[0]*mesh.dndy_sY[1]*C1star_cX_sY[i][jstarts];
       //if (mpi.myid ==0)
         //cout << xphic1_values[i] << endl;
     }
     var = 0;
+    if (diff) {
     HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xvalues);
+    }
+    if (em) {
     HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xphi_values);
@@ -324,6 +334,7 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
     HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xphic1_values);
+    }
   }
   if (mpi.pj == mpi.p2-1) {
     // upper row of grid points 
@@ -332,18 +343,21 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
 
     bc_iupper[0] = bc_ilower[0] + mesh.n-1;
     bc_iupper[1] = bc_ilower[1];
-
-    stencil_indices_bc[0] = 4; //4 means north values
-    var = 0;
-    HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
+ 
+    if (diff) {
+      stencil_indices_bc[0] = 4; //4 means north values
+      var = 0;
+      HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xclearval);
-    stencil_indices_bc[0] = 9; //9 means north values
-    //var = 1;
-    HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
+    }
+    if (em) {
+      stencil_indices_bc[0] = 9; //9 means north values
+      //var = 1;
+      HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xclearval);
-
+    }
 
     //need to change center value
     stencil_indices_bc[0] = 0; //0 means center values
@@ -351,23 +365,26 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
       //diff
       xvalues[i] = (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[mesh.M-1]*mesh.dndy_sY[mesh.M-1];
       //em
-      xphi_values[i] = (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[mesh.M-1]*mesh.dndy_sY[mesh.M-1]*phiM_cX_sY[i][mesh.m-2];
-      xphic1_values[i] = (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[mesh.M-1]*mesh.dndy_sY[mesh.M-1]*C1star_cX_sY[i][mesh.m-2];
+      xphi_values[i] = (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[mesh.M-1]*mesh.dndy_sY[mesh.M-1]*phiM_cX_sY[i][jends-1];
+      xphic1_values[i] = (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[mesh.M-1]*mesh.dndy_sY[mesh.M-1]*C1star_cX_sY[i][jends-1];
       //if (mpi.myid ==4)
         //cout << xphic1_values[i] << endl;
     }
     var = 0;
+    if (diff) {
     HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xvalues);
-    HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
+    }
+    if (em) {
+      HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xphi_values);
-    stencil_indices_bc[0] = 5; //5 means center values for phi conn
-    HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
+      stencil_indices_bc[0] = 5; //5 means center values for phi conn
+      HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xphic1_values);
- 
+    }
 
     //need to change south values
     stencil_indices_bc[0] = 3; //3 means south values
@@ -375,22 +392,26 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
       //diff
       xvalues[i] = -(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[mesh.M-1]*mesh.dndy_sY[mesh.M-1];
       //em
-      xphi_values[i] = (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[mesh.M-1]*mesh.dndy_sY[mesh.M-1]*phiM_cX_sY[i][mesh.m-2];
-      xphic1_values[i] = -(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[mesh.M-1]*mesh.dndy_sY[mesh.M-1]*C1star_cX_sY[i][mesh.m-2];
+      xphi_values[i] = (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[mesh.M-1]*mesh.dndy_sY[mesh.M-1]*phiM_cX_sY[i][jends-1];
+      xphic1_values[i] = -(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[mesh.M-1]*mesh.dndy_sY[mesh.M-1]*C1star_cX_sY[i][jends-1];
       //if (mpi.myid == 4)
         //cout << xphic1_values[i] << endl;
     }
     var = 0;
-    HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
+    if (diff) {
+      HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xvalues);
-    HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
+    }
+    if (em) {
+      HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xphi_values);
-    stencil_indices_bc[0] = 8; //3 means south values for phi conn
-    HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
+      stencil_indices_bc[0] = 8; //3 means south values for phi conn
+      HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xphic1_values);
+    }
   }
   if (mpi.pi == 0) {
     // Left row of grid points
@@ -402,30 +423,36 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
 
     stencil_indices_bc[0] = 1; //1 means west values
     var = 0;
+    if (diff) {
     HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,yclearval);
-    
-    stencil_indices_bc[0] = 6; //6 means west values
-    HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
+    }
+    if (em) {
+      stencil_indices_bc[0] = 6; //6 means west values
+      HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,yclearval);
+    }
     //need to change center value
     stencil_indices_bc[0] = 0; //center value
     for (int j=0; j<nyvalues; j++) {
       yvalues[j] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[0]*mesh.dzdx_sX[0]*2
                   +(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[0]*mesh.dzdx_sX[1];
-      yphi_values[j] = -(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[0]*mesh.dzdx_sX[1]*phiM_sX_cY[0][j];
+      yphi_values[j] = -(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[0]*mesh.dzdx_sX[1]*phiM_sX_cY[istarts][j];
       yphic1_values[j] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[0]*(mesh.dzdx_sX[0]*2*C1_LHS_BC_sX+
-                                                                mesh.dzdx_sX[1]*C1star_sX_cY[0][j]);
+                                                                mesh.dzdx_sX[1]*C1star_sX_cY[istarts][j]);
       //if (mpi.myid == 0) 
         //cout << yphic1_values[j] << endl;
     }
     //use set to replace values
     var = 0;
-    HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
+    if (diff) {
+      HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,yvalues);
+    }
+    if (em) {
     HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,yphi_values);
@@ -433,6 +460,7 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
     HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,yphic1_values);
+    }
   }
 
   if (mpi.pi == mpi.p1-1) {
@@ -443,40 +471,47 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
     bc_iupper[0] = bc_ilower[0];
     bc_iupper[1] = bc_ilower[1] + mesh.m-1;
 
-    stencil_indices_bc[0] = 2;
     var = 0;
-    HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
+    if (diff) {
+      stencil_indices_bc[0] = 2;
+      HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,yclearval);
-
-    stencil_indices_bc[0] = 7;
-    HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
+    }
+    if (em) {
+      stencil_indices_bc[0] = 7;
+      HYPRE_SStructMatrixSetBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,yclearval);
+    }
     //need to change center value
     stencil_indices_bc[0] = 0; //center value
     for (int j=0; j<nyvalues; j++) {
       yvalues[j] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[mesh.N-1]*mesh.dzdx_sX[mesh.N-1]
                   +(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[mesh.N-1]*mesh.dzdx_sX[mesh.N_s-1]*2;
-      yphi_values[j] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[mesh.N-1]*mesh.dzdx_sX[mesh.N-1]*phiM_sX_cY[mesh.n-2][j];
-      yphic1_values[j] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[mesh.N-1]*(mesh.dzdx_sX[mesh.N-1]*C1star_sX_cY[mesh.n-2][j]+
+      yphi_values[j] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[mesh.N-1]*mesh.dzdx_sX[mesh.N-1]*phiM_sX_cY[iends][j];
+      yphic1_values[j] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[mesh.N-1]*(mesh.dzdx_sX[mesh.N-1]*C1star_sX_cY[iends][j]+
                                                                        mesh.dzdx_sX[mesh.N_s-1]*(2*C1_RHS_BC_sX));
       //if (mpi.myid==1) 
       //  cout << yphic1_values[j] << endl;
     }
     var = 0;
-    HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
+    if (diff) {
+      HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,yvalues);
-    HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
+    }
+    if (em) {
+      HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                       var, nentries,
                                       stencil_indices_bc,yphi_values);
-    stencil_indices_bc[0] = 5; //center value for phi conn
-    HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
+      stencil_indices_bc[0] = 5; //center value for phi conn
+      HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                    stencil_indices_bc,yphic1_values);
-  
+    }
   }
+
   delete [] xvalues;
   delete [] yvalues;
   delete [] xphi_values;
@@ -485,11 +520,10 @@ void HypreSolverSStruct::IonSystemSStruct_C1(array2<double> phi,
   delete [] yphic1_values;
   delete [] xclearval;
   delete [] yclearval;
+
 }
 
-void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
-                                             array2<double> C2,
-                                             array2<double> phiM_sX_cY,
+void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phiM_sX_cY,
                                              array2<double> C2star_sX_cY,
                                              array2<double> phiM_cX_sY,
                                              array2<double> C2star_cX_sY,
@@ -505,9 +539,9 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
   var = 2;
   int nentries = 5;
   int nvalues = nentries*mesh.m*mesh.n;
-  double *c2_values = new double[nvalues];
-  double *phi_values = new double[nvalues];
-  double *c2_phi_values = new double[nvalues];
+  double *c2_values = new double[nvalues]();
+  double *phi_values = new double[nvalues]();
+  double *c2_phi_values = new double[nvalues]();
   //set interior values 
   int elnumX, elnumY, ix, jy;
   for (int i = 0; i < nvalues; i += nentries) {
@@ -515,7 +549,7 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
     jy = ((i/nentries)/mesh.n);
     elnumX = ((i/nentries)%mesh.n) + mpi.pi*mesh.n;
     elnumY = ((i/nentries)/mesh.n) + mpi.pj*mesh.m;
-    if (ix != 0 && ix != mesh.n-1) {
+    if (elnumX != 0 && elnumX != mesh.N-1) {
       //diff
       c2_values[i] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*(mesh.dzdx_sX[elnumX]+mesh.dzdx_sX[elnumX+1]);
       //em
@@ -525,7 +559,7 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
                                                                     +C2star_sX_cY[ix][jy]*mesh.dzdx_sX[elnumX+1] );
   
     }
-    if (jy != 0 && jy != mesh.m-1) {
+    if (elnumY != 0 && elnumY != mesh.M-1) {
       c2_values[i] = c2_values[i] +(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*(mesh.dndy_sY[elnumY]+mesh.dndy_sY[elnumY+1]);
       phi_values[i] = phi_values[i] - (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*(phiM_cX_sY[ix][jy-1]*mesh.dndy_sY[elnumY] 
                                                                                  -phiM_cX_sY[ix][jy]  *mesh.dndy_sY[elnumY+1] );
@@ -538,21 +572,21 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
    else {
      phi_values[i] = phi_values[i] + 3./(2*dt);
    }
-   if (ix != 0) {
+   if (elnumX != 0) {
      //diff
      c2_values[i+1] =-(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*mesh.dzdx_sX[elnumX]; //west
      //em
      phi_values[i+1] = -(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*phiM_sX_cY[ix-1][jy]*mesh.dzdx_sX[elnumX];//west
      c2_phi_values[i+1] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*C2star_sX_cY[ix-1][jy]*mesh.dzdx_sX[elnumX];//west
    }
-   if (ix != mesh.n-1) {
+   if (elnumX != mesh.N-1) {
       //diff
       c2_values[i+2] =-(1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*mesh.dzdx_sX[elnumX+1]; //east
       //em
       phi_values[i+2] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*phiM_sX_cY[ix][jy]*mesh.dzdx_sX[elnumX+1]; //east 
       c2_phi_values[i+2] = (1/(mesh.dz*mesh.dz))*mesh.dzdx_cX[elnumX]*C2star_sX_cY[ix][jy]*mesh.dzdx_sX[elnumX+1]; //east 
    }
-   if (jy != 0 && jy != mesh.m-1) {
+   if (elnumY != 0 && elnumY != mesh.M-1) {
      //diff
      c2_values[i+3] =-(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*mesh.dndy_sY[elnumY];//south
      c2_values[i+4] =-(1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*mesh.dndy_sY[elnumY+1];//north
@@ -569,10 +603,10 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
                                   var, nentries,
                                   c2_indices, c2_values);
   //set the c2-c2 connections
-/*  HYPRE_SStructMatrixAddToBoxValues(A, part, ilower, iupper,
+  HYPRE_SStructMatrixAddToBoxValues(A, part, ilower, iupper,
                                   var, nentries,
                                   c2_indices, phi_values);
- */ //set the c2-phi connections
+  //set the c2-phi connections
   HYPRE_SStructMatrixAddToBoxValues(A, part, ilower, iupper,
                                   var, nentries,
                                   c2_phi_indices, c2_phi_values); 
@@ -629,10 +663,10 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
     HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xvalues);
-/*    HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
+    HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xphi_values);
-  */  stencil_indices_bc[0] = 5; //5 means center values for phi conn
+    stencil_indices_bc[0] = 5; //5 means center values for phi conn
     HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xphic2_values);
@@ -650,10 +684,10 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
     HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xvalues);
-/*    HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
+    HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xphi_values);
-  */  stencil_indices_bc[0] = 9; //9 means north values for phi conn
+    stencil_indices_bc[0] = 9; //9 means north values for phi conn
     HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xphic2_values);
@@ -687,10 +721,10 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
     HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xvalues);
-/*    HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
+    HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xphi_values);
-  */  stencil_indices_bc[0] = 5; //5 means center values for phi conn
+    stencil_indices_bc[0] = 5; //5 means center values for phi conn
     HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xphic2_values);
@@ -706,10 +740,10 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
     HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xvalues);
-/*    HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
+    HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xphi_values);
-  */  stencil_indices_bc[0] = 8; //8 means south values for phi conn
+    stencil_indices_bc[0] = 8; //8 means south values for phi conn
     HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,xphic2_values);
@@ -744,10 +778,10 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
     HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,yvalues);
-/*    HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
+    HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,yphi_values);
-  */  stencil_indices_bc[0] = 5; //center value for phi conn
+    stencil_indices_bc[0] = 5; //center value for phi conn
     HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,yphic2_values);
@@ -784,15 +818,14 @@ void HypreSolverSStruct::IonSystemSStruct_C2(array2<double> phi,
     HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,yvalues);
-/*    HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
+    HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                       var, nentries,
                                       stencil_indices_bc,yphi_values);
-  */  stencil_indices_bc[0] = 5; //center value for phi conn
+    stencil_indices_bc[0] = 5; //center value for phi conn
     HYPRE_SStructMatrixAddToBoxValues(A, part, bc_ilower, bc_iupper,
                                     var, nentries,
                                     stencil_indices_bc,yphic2_values);
   }   
-int ret = HYPRE_SStructMatrixPrint("A",A,0);
   delete [] xvalues;
   delete [] yvalues;
   delete [] xphi_values;
@@ -818,7 +851,7 @@ void HypreSolverSStruct::IonSystemSStruct_Gauss(double epsilon) {
   var = 1; //set values for phi connections
   int nentries = 1;
   int nvalues = nentries*mesh.m*mesh.n;
-  double *phi_c_values = new double[nvalues];
+  double *phi_c_values = new double[nvalues]();
   for (int i=0; i<nvalues; i++) {
     phi_c_values[i] = 1/(2*epsilon*epsilon);
   }
@@ -835,10 +868,9 @@ void HypreSolverSStruct::IonSystemSStruct_Gauss(double epsilon) {
                                    c2_phi_indices, phi_c_values);
 
   //set the phi-phi connections
-  var = 1; //set values for phi connections
   nentries = 5;
   nvalues = nentries*mesh.m*mesh.n;
-  double *phi_values = new double[nvalues];
+  double *phi_values = new double[nvalues]();
   //set interior values
   int elnumX, elnumY;
   for (int i = 0; i < nvalues; i += nentries) {
@@ -853,6 +885,7 @@ void HypreSolverSStruct::IonSystemSStruct_Gauss(double epsilon) {
     phi_values[i+3] = (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*mesh.dndy_sY[elnumY]; //south
     phi_values[i+4] = (1/(mesh.dn*mesh.dn))*mesh.dndy_cY[elnumY]*mesh.dndy_sY[elnumY+1]; //north
   }
+  var = 1;
   HYPRE_SStructMatrixSetBoxValues(A, part, ilower, iupper,
                                   var, nentries,
                                   phi_indices, phi_values);
@@ -972,9 +1005,9 @@ void HypreSolverSStruct::IonSystemSStruct_RHS(array2<double> RHS_C1_star,
                                               array2<double> RHS_C2_star,
                                               array2<double> RHS_phi_star) {
   int nvalues = mesh.n*mesh.m;
-  double *values = new double[nvalues];
-  double *values1 = new double[nvalues];
-  double *values2 = new double[nvalues];
+  double *values = new double[nvalues]();
+  double *values1 = new double[nvalues]();
+  double *values2 = new double[nvalues]();
   int part = 0;
   int var;
   
@@ -1000,10 +1033,14 @@ void HypreSolverSStruct::IonSystemSStruct_RHS(array2<double> RHS_C1_star,
   HYPRE_SStructVectorSetBoxValues(b, part, ilower, iupper, var, values2);
 
   HYPRE_SStructVectorAssemble(b);
+
+  int ret2 = HYPRE_SStructVectorPrint("b",b,0);
  
   delete [] values;
   delete [] values1;
   delete [] values2;
+
+
 }
 
 void HypreSolverSStruct::IonSystemSStruct_Solve(array2<double> C1_star,
@@ -1051,9 +1088,9 @@ void HypreSolverSStruct::IonSystemSStruct_Solve(array2<double> C1_star,
   }
 
   //reshape and store in matrices
-  double *values = new double[nvalues];
-  double *values1 = new double[nvalues];
-  double *values2 = new double[nvalues];
+  double *values = new double[nvalues]();
+  double *values1 = new double[nvalues]();
+  double *values2 = new double[nvalues]();
   var = 0;
   HYPRE_SStructVectorGetBoxValues(x,part,ilower,iupper,var,values);
   var = 1;
@@ -1072,9 +1109,6 @@ void HypreSolverSStruct::IonSystemSStruct_Solve(array2<double> C1_star,
   delete [] values;
   delete [] values1;
   delete [] values2;
-}
-
-void HypreSolverSStruct::CleanUp(void) {
   //free memory to prevent leakage
   HYPRE_SStructGridDestroy(grid);
   HYPRE_SStructStencilDestroy(stencil_phi);

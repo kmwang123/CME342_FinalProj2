@@ -26,8 +26,8 @@ int main(int argc,char** argv)  {
   //int myid, num_procs;
   MPI_Init(&argc, &argv);
   MPI_Wrapper mpi;
-  mpi.p1 = 1;//p1;
-  mpi.p2 = 1;//p2;
+  mpi.p1 = 2;//p1;
+  mpi.p2 = 3;//p2;
   mpi.pi = mpi.myid % mpi.p1;
   mpi.pj = mpi.myid / mpi.p1;
   mpi.getNeighbors();
@@ -135,10 +135,11 @@ int main(int argc,char** argv)  {
       //send halo fluxes, update interior rhs, update boundary rhs
       ionSys.sendFluxes_updateRHS(time_i,dt);
       ion_laplacian.updateRHSPhi(mesh,mpi,ndim,ionSys.C1_star, ionSys.C2_star, ionSys.phi,ionSys.RHS_phi_star,epsilon, Ey_SBC_sX, Ey_NBC_sX, Phi_LHS_BC_sX,Phi_RHS_BC_sX);
-      ion_bigM.IonSystemSStruct_Matrix(epsilon,ionSys.C1_star, ionSys.C2_star, ionSys.phi,C1_LHS_BC_sX,C1_RHS_BC_sX,C2_RHS_BC_sX,time_i,dt);
-      ion_bigM.IonSystemSStruct_RHS(ionSys.RHS_C1_star, ionSys.RHS_C2_star, ionSys.RHS_phi_star);
+      ion_bigM.IonSystemSStruct_Matrix(epsilon,ionSys.phiM_sX_cY, ionSys.C1star_sX_cY, ionSys.C2star_sX_cY,ionSys.phiM_cX_sY,ionSys.C1star_cX_sY,ionSys.C2star_cX_sY,C1_LHS_BC_sX,C1_RHS_BC_sX,C2_RHS_BC_sX,time_i,dt);
+      //ion_bigM.IonSystemSStruct_RHS(ionSys.RHS_C1_star, ionSys.RHS_C2_star, ionSys.RHS_phi_star);
       //ion_bigM.IonSystemSStruct_Solve(ionSys.C1_star,ionSys.C2_star,ionSys.phi);
-      //ionSys.printOneConcentration("C1");
+      //if (mpi.myid == 0)
+      //  ionSys.printOneConcentration("C1_star");
     }
     //////////////////// End Iteration ///////////////////////
     ionSys.updateConvergedValues();
@@ -152,7 +153,6 @@ int main(int argc,char** argv)  {
 	cout << "Time: " << time << endl;
     }
 
-  //ion_bigM.CleanUp();
   MPI_Finalize();
   return 0;
 }

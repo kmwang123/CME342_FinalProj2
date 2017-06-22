@@ -16,7 +16,6 @@ MPI_Wrapper::MPI_Wrapper(void) {
 }
 
 void MPI_Wrapper::getNeighbors(void) {
-
   //set all to -1 first
   for (int i=0; i<numNeighbors; i++) {
     neighbor[i] = -1;

@@ -37,9 +37,9 @@ void IonTransportEqns2D::setUp(bool restart, bool perturb) {
   phi.Allocate(mesh.n+2*mpi.hsize,mesh.m+2*mpi.hsize);
 
   istartc = mpi.hsize; 
-  iendc = mesh.n+mpi.hsize-1;
+  iendc = istartc + mesh.n-1;
   jstartc = mpi.hsize;
-  jendc = mesh.m+mpi.hsize-1;
+  jendc = jstartc + mesh.m-1;
 
   f1star_flux_sX.Allocate(mesh.n_s+2*(mpi.hsize-1),mesh.m);
   f2star_flux_sX.Allocate(mesh.n_s+2*(mpi.hsize-1),mesh.m);
@@ -52,6 +52,14 @@ void IonTransportEqns2D::setUp(bool restart, bool perturb) {
   RHS_C1_star.Allocate(mesh.n,mesh.m);
   RHS_C2_star.Allocate(mesh.n,mesh.m);
   RHS_phi_star.Allocate(mesh.n,mesh.m);
+
+  phiM_sX_cY.Allocate(mesh.n_s+2*(mpi.hsize-1),mesh.m);
+  C1star_sX_cY.Allocate(mesh.n_s+2*(mpi.hsize-1)+1,mesh.m);
+  C2star_sX_cY.Allocate(mesh.n_s+2*(mpi.hsize-1)+1,mesh.m);
+
+  phiM_cX_sY.Allocate(mesh.n,mesh.m_s+2*(mpi.hsize-1));
+  C1star_cX_sY.Allocate(mesh.n,mesh.m_s+2*(mpi.hsize-1));
+  C2star_cX_sY.Allocate(mesh.n,mesh.m_s+2*(mpi.hsize-1));
 
   this->restart = restart;
 
@@ -180,38 +188,50 @@ void IonTransportEqns2D::sendFluxes_updateRHS(int time_i, double dt) {
   MPI_Request request[2];
   MPI_Request send_req[2];
   MPI_Status status[2];
-  Allocate(halo_m,2*mesh.m);
-  Allocate(halo_n,2*mesh.n);
+  double *halo_m = new double[5*mesh.m]();
+  double *halo_n = new double[5*mesh.n]();
 
   //recv info if there is a neighbor to the left
   if (mpi.neighbor[LEFT] != -1) {
-    MPI_Irecv(halo_m,2*mesh.m,MPI_DOUBLE,mpi.neighbor[LEFT],0,mpi.comm,&request[0]);
+    MPI_Irecv(halo_m,5*mesh.m,MPI_DOUBLE,mpi.neighbor[LEFT],0,mpi.comm,&request[0]);
 
   }
   //otherwise, send info to neighbor on the right
   if (mpi.neighbor[RIGHT] != -1) {
-    for (int j=0; j<2*mesh.m; j++) {
+    for (int j=0; j<5*mesh.m; j++) {
       if (j>=0 && j < mesh.m)
         halo_m[j] = f1star_flux_sX[mesh.n_s-1][j];
       if (j>= mesh.m && j <2*mesh.m)
         halo_m[j] = f2star_flux_sX[mesh.n_s-1][j-mesh.m];
+      if (j>= 2*mesh.m && j<3*mesh.m)
+        halo_m[j] = phiM_sX_cY[mesh.n_s-1][j-2*mesh.m];
+      if (j>= 3*mesh.m && j<4*mesh.m)
+        halo_m[j] = C1star_sX_cY[mesh.n_s-1][j-3*mesh.m];
+      if (j>= 4*mesh.m && j<5*mesh.m)
+        halo_m[j] = C2star_sX_cY[mesh.n_s-1][j-4*mesh.m];
     }
-      MPI_Isend(halo_m,2*mesh.m,MPI_DOUBLE,mpi.neighbor[RIGHT],0,mpi.comm,&send_req[0]);
+      MPI_Isend(halo_m,5*mesh.m,MPI_DOUBLE,mpi.neighbor[RIGHT],0,mpi.comm,&send_req[0]);
   }
 
   //recv info if there is a neighbor to the north
   if (mpi.neighbor[NORTH] != -1) {
-    MPI_Irecv(halo_n,2*mesh.n,MPI_DOUBLE,mpi.neighbor[NORTH],0,mpi.comm,&request[1]);
+    MPI_Irecv(halo_n,5*mesh.n,MPI_DOUBLE,mpi.neighbor[NORTH],0,mpi.comm,&request[1]);
   }
   //otherwise, send info to neighbor to the south
   if (mpi.neighbor[SOUTH] != -1) {
-    for (int i=0; i<2*mesh.n; i++) {
+    for (int i=0; i<5*mesh.n; i++) {
       if (i>=0 && i< mesh.n)
         halo_n[i] = g1star_flux_sY[i][mesh.m_s-1];
       if (i>= mesh.n && i <2*mesh.n)
         halo_n[i] = g2star_flux_sY[i-mesh.n][mesh.m_s-1];
+      if (i>=2*mesh.n && i<3*mesh.n)
+        halo_n[i] = phiM_cX_sY[i-2*mesh.n][mesh.m_s-1];
+      if (i>=3*mesh.n && i<4*mesh.n)
+        halo_n[i] = C1star_cX_sY[i-3*mesh.n][mesh.m_s-1];
+      if (i>=4*mesh.n && i<5*mesh.n)
+        halo_n[i] = C2star_cX_sY[i-4*mesh.n][mesh.m_s-1];
     }
-      MPI_Isend(halo_n,2*mesh.n,MPI_DOUBLE,mpi.neighbor[SOUTH],0,mpi.comm,&send_req[1]);
+      MPI_Isend(halo_n,5*mesh.n,MPI_DOUBLE,mpi.neighbor[SOUTH],0,mpi.comm,&send_req[1]);
   }
 
   //update interior rhs
@@ -223,16 +243,22 @@ void IonTransportEqns2D::sendFluxes_updateRHS(int time_i, double dt) {
   if (mpi.neighbor[LEFT] != -1) {
     MPI_Wait(&request[0],&status[0]);
     //after recv'ed, unpack and store in flux matrices
-    for (int j=0; j<2*mesh.m; j++) {
+    for (int j=0; j<5*mesh.m; j++) {
       if (j>=0 && j < mesh.m)
         f1star_flux_sX[0][j] = halo_m[j];
       if (j>= mesh.m && j <2*mesh.m)
         f2star_flux_sX[0][j-mesh.m] = halo_m[j];
+      if (j>=2*mesh.m && j<3*mesh.m)
+        phiM_sX_cY[0][j-2*mesh.m] = halo_m[j];
+      if (j>= 3*mesh.m && j<4*mesh.m)
+        C1star_sX_cY[0][j-3*mesh.m] = halo_m[j];
+      if (j>= 4*mesh.m && j<5*mesh.m)
+        C2star_sX_cY[0][j-4*mesh.m] = halo_m[j];
     }
     /*for (int j=0; j<mesh.m; j++) {
       for (int i=0; i<mesh.n_s; i++) {
-      if (mpi.myid == 2) {
-        cout << setprecision(15) << setw(19) << f1star_flux_sX[i][j] << " ";
+      if (mpi.myid == 1) {
+        cout << setprecision(15) << setw(19) << phiM_sX_cY[i][j] << " ";
       }
     }
     cout << endl;
@@ -245,17 +271,23 @@ void IonTransportEqns2D::sendFluxes_updateRHS(int time_i, double dt) {
   if (mpi.neighbor[NORTH] != -1) {
     MPI_Wait(&request[1],&status[1]);
     //after recv'ed, unpack and store in matrices
-    for (int i=0; i<2*mesh.n; i++) {
+    for (int i=0; i<5*mesh.n; i++) {
       if (i>=0 && i< mesh.n)
         g1star_flux_sY[i][0] = halo_n[i];
       if (i>= mesh.n && i <2*mesh.n)
         g2star_flux_sY[i-mesh.n][0] = halo_n[i];
+      if (i>=2*mesh.n && i<3*mesh.n)
+        phiM_cX_sY[i-2*mesh.n][0] = halo_n[i];
+      if (i>=3*mesh.n && i<4*mesh.n)
+        C1star_cX_sY[i-3*mesh.n][0] = halo_n[i];
+      if (i>=4*mesh.n && i<5*mesh.n)
+        C2star_cX_sY[i-4*mesh.n][0] = halo_n[i];
     }
 
    /*for (int j=0; j<mesh.m_s; j++) {
     for (int i=0; i<mesh.n; i++) {
       if (mpi.myid == 2){
-        cout << setprecision(15) << setw(19) << g2star_flux_sY[i][j] << " ";
+        cout << setprecision(15) << setw(19) << phiM_cX_sY[i][j] << " ";
     }}
     cout << endl;
     }*/ 
@@ -263,8 +295,8 @@ void IonTransportEqns2D::sendFluxes_updateRHS(int time_i, double dt) {
 
   //update boundary rhs 
   updateBoundaryRHS(time_i,dt);
-  halo_m.Deallocate();
-  halo_n.Deallocate();
+  delete [] halo_m;
+  delete [] halo_n;
 }
 
 void IonTransportEqns2D::updateBoundaryRHS(int time_i, double dt) {
@@ -398,49 +430,50 @@ void IonTransportEqns2D::sendCenters_updateFluxes(array2<double> u_star, array2<
   MPI_Request request[2];
   MPI_Request send_req[2];
   MPI_Status status[2];
-  Allocate(halo_m,3*mesh.m);
-  Allocate(halo_n,3*mesh.n);
+  double *haloc_m = new double[3*mesh.m]();
+  double *haloc_n = new double[3*mesh.n]();
   //recv info if there is a neighbor to the right
   if (mpi.neighbor[RIGHT] != -1) {//(mpi.pi != mpi.p1-1) {
+    //cout << "neighbor: " << mpi.neighbor[RIGHT] << endl;
     //recv information
-    MPI_Irecv(halo_m,3*mesh.m,MPI_DOUBLE,mpi.neighbor[RIGHT],0,mpi.comm,&request[0]);
-    /*if (mpi.myid == 2) {
-      for (int j=0; j<3*mesh.m; j++) {
-        cout << "recv: " << halo_m[j] << endl;
-      }
-    }*/
+    MPI_Irecv(haloc_m,3*mesh.m,MPI_DOUBLE,mpi.neighbor[RIGHT],0,mpi.comm,&request[0]);
+    //if (mpi.myid == 2) {
+    //  for (int j=0; j<3*mesh.m; j++) {
+    //    cout << "recv: " << haloc_m[j] << endl;
+    //  }
+    //}
   }
   //otherwise, send info to neighbor on left
   if (mpi.neighbor[LEFT] != -1) {//(mpi.pi != 0)  {
     for (int j=0; j<3*mesh.m; j++) {
       if (j >= 0 && j < mesh.m)
-        halo_m[j] = phi[istartc][jstartc+j]; 
+        haloc_m[j] = phi[istartc][jstartc+j]; 
       if (j >= mesh.m && j <2*mesh.m)  
-        halo_m[j] = C1_star[istartc][jstartc+j-mesh.m];
+        haloc_m[j] = C1_star[istartc][jstartc+j-mesh.m];
       if(j >= 2*mesh.m && j < 3*mesh.m) 
-        halo_m[j] = C2_star[istartc][jstartc+j-2*mesh.m];
+        haloc_m[j] = C2_star[istartc][jstartc+j-2*mesh.m];
       //if (mpi.myid==3)
-     // cout << "sending: " << halo_m[j] << endl;
+     // cout << "sending: " << haloc_m[j] << endl;
 
     }
-    MPI_Isend(halo_m,3*mesh.m,MPI_DOUBLE,mpi.neighbor[LEFT],0,mpi.comm,&send_req[0]);
+    MPI_Isend(haloc_m,3*mesh.m,MPI_DOUBLE,mpi.neighbor[LEFT],0,mpi.comm,&send_req[0]);
   }
 
   //recv info if there is a neighbor to the south
   if (mpi.neighbor[SOUTH] != -1) {
-    MPI_Irecv(halo_n,3*mesh.n,MPI_DOUBLE,mpi.neighbor[SOUTH],0,mpi.comm,&request[1]);
+    MPI_Irecv(haloc_n,3*mesh.n,MPI_DOUBLE,mpi.neighbor[SOUTH],0,mpi.comm,&request[1]);
   }
   //otherwise, send info to neighbor to the north
   if (mpi.neighbor[NORTH] != -1) {
     for (int i=0; i<3*mesh.n; i++) {
       if (i>=0 && i<mesh.n) 
-        halo_n[i] = phi[istartc+i][jstartc];
+        haloc_n[i] = phi[istartc+i][jstartc];
       if (i>=mesh.n && i<2*mesh.n) 
-        halo_n[i] = C1_star[istartc+i-mesh.n][jstartc];
+        haloc_n[i] = C1_star[istartc+i-mesh.n][jstartc];
       if (i>=2*mesh.n && i<3*mesh.n)
-        halo_n[i] = C2_star[istartc+i-2*mesh.n][jstartc];
+        haloc_n[i] = C2_star[istartc+i-2*mesh.n][jstartc];
     }
-    MPI_Isend(halo_n,3*mesh.n,MPI_DOUBLE,mpi.neighbor[NORTH],0,mpi.comm,&send_req[1]);
+    MPI_Isend(haloc_n,3*mesh.n,MPI_DOUBLE,mpi.neighbor[NORTH],0,mpi.comm,&send_req[1]);
   }
 
 
@@ -455,11 +488,11 @@ void IonTransportEqns2D::sendCenters_updateFluxes(array2<double> u_star, array2<
     //after recv'ed, upack and store in matrices
     for (int j=0; j<3*mesh.m;j++) {
       if (j >= 0 && j < mesh.m)
-        phi[iendc+1][jstartc+j] = halo_m[j];
+        phi[iendc+1][jstartc+j] = haloc_m[j];
       if (j >= mesh.m && j <2*mesh.m)  
-        C1_star[iendc+1][jstartc+j-mesh.m] = halo_m[j];
+        C1_star[iendc+1][jstartc+j-mesh.m] = haloc_m[j];
       if(j >= 2*mesh.m && j < 3*mesh.m) 
-        C2_star[iendc+1][jstartc+j-2*mesh.m] = halo_m[j];
+        C2_star[iendc+1][jstartc+j-2*mesh.m] = haloc_m[j];
     }
     //calculate f_fluxes across iendc+1 and iendc
     
@@ -484,36 +517,19 @@ void IonTransportEqns2D::sendCenters_updateFluxes(array2<double> u_star, array2<
     //after recv'ed, upack and store in matrices
     for (int i=0; i<3*mesh.n; i++) {
       if (i>=0 && i<mesh.n) 
-        phi[istartc+i][jendc+1] = halo_n[i];
+        phi[istartc+i][jendc+1] = haloc_n[i];
       if (i>=mesh.n && i<2*mesh.n) 
-        C1_star[istartc+i-mesh.n][jendc+1] = halo_n[i];
+        C1_star[istartc+i-mesh.n][jendc+1] = haloc_n[i];
       if (i>=2*mesh.n && i<3*mesh.n)
-        C2_star[istartc+i-2*mesh.n][jendc+1] = halo_n[i];
+        C2_star[istartc+i-2*mesh.n][jendc+1] = haloc_n[i];
     }
-   /* for (int j=0; j<=jendc+1; j++) {
-      for (int i=0; i<=iendc+1; i++) {
-        if (mpi.myid == 2){
-          cout << setprecision(15) << setw(19) << phi[i][j] << " ";
-        }
-      }
-      cout << endl;
-    }*/
   }
-
-/*for (int j=0; j<=jendc+1; j++) {
-      for (int i=0; i<=iendc+1; i++) {
-        if (mpi.myid == 4){
-          cout << setprecision(15) << setw(19) << phi[i][j] << " ";
-        }
-      }
-      cout << endl;
-    }*/
 
   //update boundary fluxes
   updateBoundaryFluxes(u_star,v_star);
 
-   halo_m.Deallocate();
-   halo_n.Deallocate();
+   delete [] haloc_m;
+   delete [] haloc_n;
 
 }
 
@@ -541,6 +557,9 @@ void IonTransportEqns2D::updateBoundaryFluxes(array2<double> u_star, array2<doub
                             - 0.5*(C2_star[istartc+iendX][jstartc+j]+C2_star[istartc+iendX-1][jstartc+j])*(D2*Ex_star_sX[iendX][j]);//em
       f2star_flux_sX[iendX][j] = f2star_flux_sX[iendX][j]
                             - 0.5*(C2_star[istartc+iendX][jstartc+j]+C2_star[istartc+iendX-1][jstartc+j])*(D2*u_star[iendX][j]);//advection
+      phiM_sX_cY[iendX][j] = 0.5*(phi[istartc+iendX][jstartc+j] - phi[istartc+iendX-1][jstartc+j]);
+      C1star_sX_cY[iendX][j] = 0.5*(C1_star[istartc+iendX][jstartc+j] + C1_star[istartc+iendX-1][jstartc+j]);
+      C2star_sX_cY[iendX][j] = 0.5*(C2_star[istartc+iendX][jstartc+j] + C2_star[istartc+iendX-1][jstartc+j]);
     }
   } 
 
@@ -563,7 +582,11 @@ void IonTransportEqns2D::updateBoundaryFluxes(array2<double> u_star, array2<doub
       g2star_flux_sY[i][jendY] = g2star_flux_sY[i][jendY]
                            - 0.5*(C2_star[istartc+i][jstartc+jendY]+C2_star[istartc+i][jstartc+jendY-1])*(D2*Ey_star_sY[i][jendY]);//em
       g2star_flux_sY[i][jendY] = g2star_flux_sY[i][jendY]
-                           - 0.5*(C2_star[istartc+i][jstartc+jendY]+C2_star[istartc+i][jstartc+jendY-1])*(D2*v_star[i][jendY]);//advection  
+                           - 0.5*(C2_star[istartc+i][jstartc+jendY]+C2_star[istartc+i][jstartc+jendY-1])*(D2*v_star[i][jendY]);//advection 
+
+      phiM_cX_sY[i][jendY] = 0.5*(phi[istartc+i][jstartc+jendY] - phi[istartc+i][jstartc+jendY-1]);
+      C1star_cX_sY[i][jendY] = 0.5*(C1_star[istartc+i][jstartc+jendY] + C1_star[istartc+i][jstartc+jendY-1]);
+      C2star_cX_sY[i][jendY] = 0.5*(C2_star[istartc+i][jstartc+jendY] + C2_star[istartc+i][jstartc+jendY-1]); 
     }
   }
   /*for (int j=0; j<mesh.m_s; j++) {
@@ -573,10 +596,10 @@ void IonTransportEqns2D::updateBoundaryFluxes(array2<double> u_star, array2<doub
     }}
     cout << endl;
   }*/
- /* for (int j=0; j<mesh.m; j++) { 
+  /*for (int j=0; j<mesh.m; j++) { 
     for (int i=0; i<mesh.n_s; i++) {
-     if (mpi.myid == 3) {
-        cout << setprecision(15) << setw(19) << f1star_flux_sX[i][j] << " ";
+     if (mpi.myid == 1) {
+        cout << setprecision(15) << setw(19) << phiM_sX_cY[i][j] << " ";
       }
     }
     cout << endl;
@@ -612,6 +635,10 @@ void IonTransportEqns2D::updateInteriorFluxes(array2<double> u_star, array2<doub
                             - 0.5*(C2_star[istartc+i][jstartc+j]+C2_star[istartc+i-1][jstartc+j])*(D2*Ex_star_sX[i][j]);//em
       f2star_flux_sX[i][j] = f2star_flux_sX[i][j]
                             - 0.5*(C2_star[istartc+i][jstartc+j]+C2_star[istartc+i-1][jstartc+j])*(D2*u_star[i][j]);//advection
+    
+      phiM_sX_cY[i][j] = 0.5*(phi[istartc+i][jstartc+j] - phi[istartc+i-1][jstartc+j]);
+      C1star_sX_cY[i][j] = 0.5*(C1_star[istartc+i][jstartc+j] + C1_star[istartc+i-1][jstartc+j]);
+      C2star_sX_cY[i][j] = 0.5*(C2_star[istartc+i][jstartc+j] + C2_star[istartc+i-1][jstartc+j]);
     }
   }
 
@@ -635,6 +662,10 @@ void IonTransportEqns2D::updateInteriorFluxes(array2<double> u_star, array2<doub
                            - 0.5*(C2_star[istartc+i][jstartc+j]+C2_star[istartc+i][jstartc+j-1])*(D2*Ey_star_sY[i][j]);//em
       g2star_flux_sY[i][j] = g2star_flux_sY[i][j]
                            - 0.5*(C2_star[istartc+i][jstartc+j]+C2_star[istartc+i][jstartc+j-1])*(D2*v_star[i][j]);//advection 
+ 
+      phiM_cX_sY[i][j] = 0.5*(phi[istartc+i][jstartc+j] - phi[istartc+i][jstartc+j-1]);
+      C1star_cX_sY[i][j] = 0.5*(C1_star[istartc+i][jstartc+j] + C1_star[istartc+i][jstartc+j-1]);
+      C2star_cX_sY[i][j] = 0.5*(C2_star[istartc+i][jstartc+j] + C2_star[istartc+i][jstartc+j-1]);
     }
   }
 
@@ -699,6 +730,15 @@ void IonTransportEqns2D::printOneConcentration(string type) {
     for (int i=mpi.hsize; i<mesh.n+mpi.hsize; i++) {
       for (int j=mpi.hsize; j<mesh.m+mpi.hsize; j++) {
         cout << setprecision(15) << setw(19) << C2_n[i][j] << " ";
+      }
+      cout << endl;
+    }
+  }
+  else if (type == "C1_star") {
+    cout << "C1_star: " << endl;
+    for (int i=mpi.hsize; i<mesh.n+mpi.hsize; i++) {
+      for (int j=mpi.hsize; j<mesh.m+mpi.hsize; j++) {
+        cout << setprecision(15) << setw(19) << C1_star[i][j] << " ";
       }
       cout << endl;
     }

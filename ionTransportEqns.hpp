@@ -46,11 +46,17 @@ class IonTransportEqns2D {
     array2<double> RHS_C1_star;
     array2<double> RHS_C2_star;
     array2<double> RHS_phi_star;
+
+    array2<double> phiM_sX_cY;
+    array2<double> C1star_sX_cY;
+    array2<double> C2star_sX_cY;
+    
+    array2<double> phiM_cX_sY;
+    array2<double> C1star_cX_sY;
+    array2<double> C2star_cX_sY;
  
     int istartc, iendc, jstartc, jendc;
  
-    array1<double>::opt halo_m;
-    array1<double>::opt halo_n;
 
     void setUp(bool restart, bool perturb);
     void createBCarrays(int C1_bcs[2], int C2_bcs[2], int Ey_bcs[2]);

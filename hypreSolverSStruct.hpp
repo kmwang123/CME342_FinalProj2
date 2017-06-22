@@ -32,31 +32,33 @@ class HypreSolverSStruct {
    int n_pre = 1;
    int n_post = 1;
    int istartc, iendc, jstartc, jendc;
+   int istarts, iends, jstarts, jends;
    int solver_id = 0;
    bool restart;
+   bool diff = 0;
+   bool em = 1;
 
    void IonSystemSStructInit_Matrix(int ndim, bool restart);
-   void IonSystemSStruct_C1(array2<double> phi,
-                            array2<double> C1,
-                            array2<double> phiM_sX_cY,
+   void IonSystemSStruct_C1(array2<double> phiM_sX_cY,
                             array2<double> C1star_sX_cY,
                             array2<double> phiM_cX_sY,
                             array2<double> C1star_cX_sY,
                             double C1_LHS_BC_sX, 
                             double C1_RHS_BC_sX,
                             int time_i, double dt);
-   void IonSystemSStruct_C2(array2<double> phi,
-                            array2<double> C2,
-                            array2<double> phiM_sX_cY,
+   void IonSystemSStruct_C2(array2<double> phiM_sX_cY,
                             array2<double> C2star_sX_cY,
                             array2<double> phiM_cX_sY,
                             array2<double> C2star_cX_sY,
                             double C2_RHS_BC_sX,
                             int time_i, double dt);
    void IonSystemSStruct_Matrix(double epsilon,
-                                array2<double> C1,
-                                array2<double> C2,
-                                array2<double> phi,
+                                array2<double> phiM_sX_cY,
+                                array2<double> C1star_sX_cY,
+                                array2<double> C2star_sX_cY,
+                                array2<double> phiM_cX_sY,
+                                array2<double> C1star_cX_sY,
+                                array2<double> C2star_cX_sY,
                                 double C1_LHS_BC_sX,
                                 double C1_RHS_BC_sX,
                                 double C2_RHS_BC_sX,
@@ -77,7 +79,6 @@ class HypreSolverSStruct {
     iupper[0] = ilower[0] + mesh.n-1;
     iupper[1] = ilower[1] + mesh.m-1;
   }
-  void CleanUp(void); 
   private:
     Mesh& mesh;
     MPI_Wrapper& mpi;
