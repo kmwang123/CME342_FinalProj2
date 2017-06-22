@@ -718,8 +718,8 @@ void IonTransportEqns2D::perturbOneConcentration(array2<double> &data) {
 void IonTransportEqns2D::printOneConcentration(string type) {
   if (type == "C1") {
     cout << "C1: " << endl;
-    for (int i=mpi.hsize; i<mesh.n+mpi.hsize; i++) {
-      for (int j=mpi.hsize; j<mesh.m+mpi.hsize; j++) {
+    for (int j=mpi.hsize; j<mesh.m+mpi.hsize; j++) {
+      for (int i=mpi.hsize; i<mesh.n+mpi.hsize; i++) {
         cout << setprecision(15) << setw(19) << C1_n[i][j] << " ";
       }
       cout << endl;
@@ -727,8 +727,8 @@ void IonTransportEqns2D::printOneConcentration(string type) {
   }
   else if (type == "C2") {
     cout << "C2: " << endl;
-    for (int i=mpi.hsize; i<mesh.n+mpi.hsize; i++) {
-      for (int j=mpi.hsize; j<mesh.m+mpi.hsize; j++) {
+    for (int j=mpi.hsize; j<mesh.m+mpi.hsize; j++) {
+      for (int i=mpi.hsize; i<mesh.n+mpi.hsize; i++) {
         cout << setprecision(15) << setw(19) << C2_n[i][j] << " ";
       }
       cout << endl;
@@ -736,9 +736,27 @@ void IonTransportEqns2D::printOneConcentration(string type) {
   }
   else if (type == "C1_star") {
     cout << "C1_star: " << endl;
-    for (int i=mpi.hsize; i<mesh.n+mpi.hsize; i++) {
-      for (int j=mpi.hsize; j<mesh.m+mpi.hsize; j++) {
+    for (int j=mpi.hsize; j<mesh.m+mpi.hsize; j++) {
+      for (int i=mpi.hsize; i<mesh.n+mpi.hsize; i++) {
         cout << setprecision(15) << setw(19) << C1_star[i][j] << " ";
+      }
+      cout << endl;
+    }
+  }
+  else if (type == "C2_star") {
+    cout << "C2_star: " << endl;
+    for (int j=mpi.hsize; j<mesh.m+mpi.hsize; j++) {
+      for (int i=mpi.hsize; i<mesh.n+mpi.hsize; i++) {
+        cout << setprecision(15) << setw(19) << C2_star[i][j] << " ";
+      }
+      cout << endl;
+    }
+  }
+  else if (type == "phi") {
+    cout << "phi: " << endl;
+    for (int j=mpi.hsize; j<mesh.m+mpi.hsize; j++) {
+      for (int i=mpi.hsize; i<mesh.n+mpi.hsize; i++) {
+        cout << setprecision(15) << setw(19) << phi[i][j] << " ";
       }
       cout << endl;
     }

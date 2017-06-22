@@ -136,10 +136,10 @@ int main(int argc,char** argv)  {
       ionSys.sendFluxes_updateRHS(time_i,dt);
       ion_laplacian.updateRHSPhi(mesh,mpi,ndim,ionSys.C1_star, ionSys.C2_star, ionSys.phi,ionSys.RHS_phi_star,epsilon, Ey_SBC_sX, Ey_NBC_sX, Phi_LHS_BC_sX,Phi_RHS_BC_sX);
       ion_bigM.IonSystemSStruct_Matrix(epsilon,ionSys.phiM_sX_cY, ionSys.C1star_sX_cY, ionSys.C2star_sX_cY,ionSys.phiM_cX_sY,ionSys.C1star_cX_sY,ionSys.C2star_cX_sY,C1_LHS_BC_sX,C1_RHS_BC_sX,C2_RHS_BC_sX,time_i,dt);
-      //ion_bigM.IonSystemSStruct_RHS(ionSys.RHS_C1_star, ionSys.RHS_C2_star, ionSys.RHS_phi_star);
-      //ion_bigM.IonSystemSStruct_Solve(ionSys.C1_star,ionSys.C2_star,ionSys.phi);
-      //if (mpi.myid == 0)
-      //  ionSys.printOneConcentration("C1_star");
+      ion_bigM.IonSystemSStruct_RHS(ionSys.RHS_C1_star, ionSys.RHS_C2_star, ionSys.RHS_phi_star);
+      ion_bigM.IonSystemSStruct_Solve(ionSys.C1_star,ionSys.C2_star,ionSys.phi);
+      if (mpi.myid == 2)
+        ionSys.printOneConcentration("C1_star");
     }
     //////////////////// End Iteration ///////////////////////
     ionSys.updateConvergedValues();

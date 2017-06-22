@@ -35,7 +35,7 @@ class HypreSolverSStruct {
    int istarts, iends, jstarts, jends;
    int solver_id = 0;
    bool restart;
-   bool diff = 0;
+   bool diff = 1;
    bool em = 1;
 
    void IonSystemSStructInit_Matrix(int ndim, bool restart);
